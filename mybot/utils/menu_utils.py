@@ -133,6 +133,13 @@ async def send_clean_message(
 
 async def send_role_menu(message: Message, session: AsyncSession) -> None:
     """Display the appropriate main menu based on the user's role."""
-    role = await get_user_role(message.bot, message.from_user.id, session=session)
-    text, kb, state = _menu_details(role)
-    await send_menu(message, text, kb, session, state)
+    try:
+        role = await get_user_role(message.bot, message.from_user.id, session=session)
+        print(f"User {message.from_user.id} detected role: {role}")  # Debug log
+        text, kb, state = _menu_details(role)
+        await send_menu(message, text, kb, session, state)
+    except Exception as e:
+        print(f"Error in send_role_menu: {e}")
+        # Fallback to free user menu
+        text, kb, state = _menu_details("free")
+        await send_menu(message, text, kb, session, state)

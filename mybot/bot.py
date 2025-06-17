@@ -25,6 +25,7 @@ async def main() -> None:
 
     logging.basicConfig(level=logging.INFO)
     logging.info(f"VIP channel ID: {VIP_CHANNEL_ID}")
+    logging.info(f"Bot starting...")
 
     bot = Bot(BOT_TOKEN, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
     dp = Dispatcher(storage=MemoryStorage())
@@ -64,6 +65,7 @@ async def main() -> None:
     vip_task = asyncio.create_task(vip_subscription_scheduler(bot, Session))
 
     try:
+        logging.info("Bot is starting polling...")
         await dp.start_polling(bot)
     finally:
         pending_task.cancel()

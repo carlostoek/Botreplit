@@ -43,7 +43,7 @@ from utils.message_utils import (
 )
 from utils.messages import BOT_MESSAGES, NIVEL_TEMPLATE
 from services.level_service import get_next_level_info
-from utils.user_roles import is_admin, is_vip_member
+from utils.user_roles import is_admin, is_vip_member, get_user_role
 from keyboards.admin_main_kb import get_admin_main_kb
 from keyboards.subscription_kb import get_subscription_kb
 from utils.menu_utils import update_menu
@@ -58,6 +58,13 @@ router = Router()
 @router.message(Command("rewards"))
 async def rewards_command(message: Message, session: AsyncSession):
     user_id = message.from_user.id
+    
+    # Check if user has access to rewards (VIP or admin)
+    role = await get_user_role(message.bot, user_id, session=session)
+    if role not in ["vip", "admin"]:
+        await message.answer("Esta función está disponible solo para miembros VIP.")
+        return
+    
     reward_service = RewardService(session)
     user = await session.get(User, user_id)
     user_points = int(user.points) if user else 0
@@ -74,7 +81,9 @@ async def rewards_command(message: Message, session: AsyncSession):
 @router.callback_query(F.data == "menu_principal")
 async def go_to_main_menu_from_inline(callback: CallbackQuery, session: AsyncSession):
     user_id = callback.from_user.id
-    if is_admin(user_id):
+    role = await get_user_role(callback.bot, user_id, session=session)
+    
+    if role == "admin":
         await update_menu(
             callback,
             "Menú de administración",
@@ -82,11 +91,16 @@ async def go_to_main_menu_from_inline(callback: CallbackQuery, session: AsyncSes
             session,
             "admin_main",
         )
-    else:
+    elif role == "vip":
         await set_user_menu_state(session, user_id, "root")
         await callback.message.edit_text(
             BOT_MESSAGES["start_welcome_returning_user"],
             reply_markup=get_main_menu_keyboard(),
+        )
+    else:
+        await callback.message.edit_text(
+            "Bienvenido a los kinkys",
+            reply_markup=get_subscription_kb(),
         )
     await callback.answer()
 
@@ -95,13 +109,18 @@ async def go_to_main_menu_from_inline(callback: CallbackQuery, session: AsyncSes
 @router.callback_query(F.data.startswith("menu:"))
 async def menu_callback_handler(callback: CallbackQuery, session: AsyncSession):
     user_id = callback.from_user.id
+    role = await get_user_role(callback.bot, user_id, session=session)
+    
+    # Check access for VIP-only features
+    if role not in ["vip", "admin"]:
+        await callback.answer("Esta función está disponible solo para miembros VIP.", show_alert=True)
+        return
+    
     data = callback.data.split(":")
     menu_type = data[1]
 
     current_state = await get_user_menu_state(session, user_id)
-    new_state = (
-        current_state  # Por defecto, no cambia el estado si no hay una navegación clara
-    )
+    new_state = current_state
 
     keyboard = None
     message_text = ""
@@ -141,20 +160,11 @@ async def menu_callback_handler(callback: CallbackQuery, session: AsyncSession):
         new_state = "rewards"
     elif menu_type == "ranking":
         point_service = PointService(session)
-        top_users = await point_service.get_top_users(
-            limit=10
-        )  # Asegúrate de que get_top_users exista
-        message_text = await get_ranking_message(
-            top_users
-        )  # Asegúrate de que get_ranking_message exista
+        top_users = await point_service.get_top_users(limit=10)
+        message_text = await get_ranking_message(top_users)
         keyboard = get_ranking_keyboard()
         new_state = "ranking"
     elif menu_type == "back":
-        # Lógica de "volver"
-        # Simplificamos para siempre volver al menú raíz si estamos en un submenú
-        # O si get_parent_menu devuelve algo específico.
-        # En este caso, si estamos en un submenú (profile, missions, etc.),
-        # queremos volver al menú principal (root).
         if current_state in [
             "profile",
             "missions",
@@ -164,12 +174,9 @@ async def menu_callback_handler(callback: CallbackQuery, session: AsyncSession):
             "reward_details",
         ]:
             keyboard = get_main_menu_keyboard()
-            message_text = BOT_MESSAGES[
-                "start_welcome_returning_user"
-            ]  # Mensaje consistente
+            message_text = BOT_MESSAGES["start_welcome_returning_user"]
             new_state = "root"
         else:
-            # Si no estamos en un submenú claro para "volver", ir al menú raíz
             keyboard = get_main_menu_keyboard()
             message_text = BOT_MESSAGES["start_welcome_returning_user"]
             new_state = "root"
@@ -184,6 +191,12 @@ async def menu_callback_handler(callback: CallbackQuery, session: AsyncSession):
 @router.callback_query(F.data == "view_level")
 async def show_user_level(callback: CallbackQuery, session: AsyncSession):
     user_id = callback.from_user.id
+    role = await get_user_role(callback.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await callback.answer("Esta función está disponible solo para miembros VIP.", show_alert=True)
+        return
+    
     user = await session.get(User, user_id)
     if not user:
         await callback.answer("Debes iniciar con /start", show_alert=True)
@@ -206,6 +219,12 @@ async def show_user_level(callback: CallbackQuery, session: AsyncSession):
 @router.callback_query(F.data.startswith("claim_reward_"))
 async def handle_claim_reward_callback(callback: CallbackQuery, session: AsyncSession):
     user_id = callback.from_user.id
+    role = await get_user_role(callback.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await callback.answer("Esta función está disponible solo para miembros VIP.", show_alert=True)
+        return
+    
     reward_id = int(callback.data.split("_")[-1])
 
     reward_service = RewardService(session)
@@ -232,6 +251,12 @@ async def handle_mission_details_callback(
     callback: CallbackQuery, session: AsyncSession
 ):
     user_id = callback.from_user.id
+    role = await get_user_role(callback.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await callback.answer("Esta función está disponible solo para miembros VIP.", show_alert=True)
+        return
+    
     mission_id = callback.data[len("mission_") :]
 
     mission_service = MissionService(session)
@@ -243,7 +268,6 @@ async def handle_mission_details_callback(
 
     mission_details_message = await get_mission_details_message(mission)
 
-    # Un teclado específico para la misión, con un botón para completarla si es posible
     keyboard = InlineKeyboardMarkup(
         inline_keyboard=[
             [
@@ -256,7 +280,7 @@ async def handle_mission_details_callback(
                 InlineKeyboardButton(
                     text="⬅️ Volver a Misiones", callback_data="menu:missions"
                 )
-            ],  # Volver al menú de misiones
+            ],
             [
                 InlineKeyboardButton(
                     text="🏠 Menú Principal", callback_data="menu_principal"
@@ -266,9 +290,7 @@ async def handle_mission_details_callback(
     )
 
     await callback.message.edit_text(mission_details_message, reply_markup=keyboard)
-    await set_user_menu_state(
-        session, user_id, "mission_details"
-    )  # Establecer el estado para detalles de misión
+    await set_user_menu_state(session, user_id, "mission_details")
     await callback.answer()
 
 
@@ -276,6 +298,12 @@ async def handle_mission_details_callback(
 @router.callback_query(F.data.startswith("missions_page_"))
 async def handle_missions_pagination(callback: CallbackQuery, session: AsyncSession):
     user_id = callback.from_user.id
+    role = await get_user_role(callback.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await callback.answer("Esta función está disponible solo para miembros VIP.", show_alert=True)
+        return
+    
     try:
         offset = int(callback.data.split("_")[-1])
     except ValueError:
@@ -298,6 +326,12 @@ async def handle_complete_mission_callback(
     callback: CallbackQuery, session: AsyncSession
 ):
     user_id = callback.from_user.id
+    role = await get_user_role(callback.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await callback.answer("Esta función está disponible solo para miembros VIP.", show_alert=True)
+        return
+    
     mission_id = callback.data[len("complete_mission_") :]
 
     mission_service = MissionService(session)
@@ -311,7 +345,6 @@ async def handle_complete_mission_callback(
         await callback.answer("Error: Usuario o misión no encontrada.", show_alert=True)
         return
 
-    # Verificar si la misión ya está completada para el período actual
     is_completed_for_period, _ = await mission_service.check_mission_completion_status(
         user, mission
     )
@@ -321,7 +354,6 @@ async def handle_complete_mission_callback(
         )
         return
 
-    # Intentar completar la misión
     completed, completed_mission_obj = await mission_service.complete_mission(
         user_id,
         mission_id,
@@ -329,24 +361,17 @@ async def handle_complete_mission_callback(
     )
 
     if completed:
-        # Opcional: Otorgar un logro por la primera misión
-        if not user.missions_completed:  # Si es la primera misión del usuario
+        if not user.missions_completed:
             await achievement_service.grant_achievement(user_id, "first_mission")
         await callback.answer("Misión completada!", show_alert=True)
 
-        # Volver al menú de misiones y actualizarlo
-        active_missions = await mission_service.get_active_missions(
-            user_id=user_id
-        )  # Volver a obtener las misiones activas
+        active_missions = await mission_service.get_active_missions(user_id=user_id)
         await callback.message.edit_text(
             BOT_MESSAGES["menu_missions_text"],
             reply_markup=get_missions_keyboard(active_missions),
         )
-        await set_user_menu_state(
-            session, user_id, "missions"
-        )  # Volver al estado de misiones
+        await set_user_menu_state(session, user_id, "missions")
     else:
-        # Aquí podrías añadir un mensaje específico si la misión requiere una acción externa
         await callback.answer(
             "No puedes completar esta misión ahora mismo o requiere una acción externa.",
             show_alert=True,
@@ -358,17 +383,14 @@ async def handle_complete_mission_callback(
 async def handle_reaction_callback(callback: CallbackQuery, session: AsyncSession):
     user_id = callback.from_user.id
     parts = callback.data.split("_")
-    reaction_type = parts[1]  # 'like' or 'dislike'
-    target_message_id = int(parts[2])  # ID del mensaje al que se reaccionó
+    reaction_type = parts[1]
+    target_message_id = int(parts[2])
 
-    # Asume un servicio para manejar reacciones y puntos
-    # Puedes crear un ReactionService o integrar esto en PointService/MissionService
     point_service = PointService(session)
     mission_service = MissionService(session)
     achievement_service = AchievementService(session)
 
-    # Puntos base por reacción
-    base_points_for_reaction = 10 if reaction_type == "like" else 5  # Ejemplo
+    base_points_for_reaction = 10 if reaction_type == "like" else 5
 
     user = await session.get(User, user_id)
     if not user:
@@ -377,32 +399,23 @@ async def handle_reaction_callback(callback: CallbackQuery, session: AsyncSessio
         )
         return
 
-    # Verificar si el usuario ya reaccionó a este mensaje para evitar spam de puntos
     if user.channel_reactions and user.channel_reactions.get(str(target_message_id)):
         await callback.answer("Ya has reaccionado a este mensaje.", show_alert=True)
         return
 
-    # Añadir los puntos base
     await point_service.add_points(user_id, base_points_for_reaction, bot=callback.bot)
 
-    # Marcar el mensaje como reaccionado por el usuario
     if user.channel_reactions is None:
         user.channel_reactions = {}
-    user.channel_reactions[str(target_message_id)] = (
-        True  # Puedes guardar el timestamp si quieres más detalle
-    )
-    await session.commit()  # Guardar el estado de reacción
+    user.channel_reactions[str(target_message_id)] = True
+    await session.commit()
 
-    # Verificar si hay misiones relacionadas con la reacción
     mission_completed_message = ""
-    # Obtener misiones activas que requieran acción
     active_action_missions = await mission_service.get_active_missions(
         user_id=user_id, mission_type="reaction"
-    )  # Asume un tipo 'reaction'
+    )
 
     for mission in active_action_missions:
-        # Aquí la action_data de la misión debería especificar el message_id y/o reaction_type
-        # Ejemplo: mission.action_data = {'target_message_id': X, 'reaction_type': 'like'}
         requires_specific_message = (
             mission.action_data
             and mission.action_data.get("target_message_id") == target_message_id
@@ -412,17 +425,15 @@ async def handle_reaction_callback(callback: CallbackQuery, session: AsyncSessio
             and mission.action_data.get("reaction_type") == reaction_type
         )
 
-        # Si la misión no requiere una acción específica o si la requiere y coincide
         if mission.requires_action and (
             not mission.action_data
             or (requires_specific_message and requires_specific_reaction)
         ):
-            # Check if the user has already completed this mission for the current period
             is_completed_for_period, _ = (
                 await mission_service.check_mission_completion_status(
                     user, mission, target_message_id=target_message_id
                 )
-            )  # Pasa target_message_id
+            )
 
             if not is_completed_for_period:
                 completed, mission_obj = await mission_service.complete_mission(
@@ -448,21 +459,22 @@ async def handle_reaction_callback(callback: CallbackQuery, session: AsyncSessio
 
 
 # --- Handlers para los botones del ReplyKeyboardMarkup ---
-# Estos handlers se activarán cuando el usuario envíe el texto exacto del botón.
-
 
 @router.message(F.text == "👤 Perfil")
 async def show_profile_from_reply_keyboard(message: Message, session: AsyncSession):
     user_id = message.from_user.id
+    role = await get_user_role(message.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await message.answer("Esta función está disponible solo para miembros VIP.")
+        return
+    
     user = await session.get(User, user_id)
     if user:
-        point_service = PointService(session)
-        achievement_service = AchievementService(session)
         mission_service = MissionService(session)
         active_missions = await mission_service.get_active_missions(user_id=user_id)
         profile_message = await get_profile_message(user, active_missions, session)
         await set_user_menu_state(session, user_id, "profile")
-        # Mostrar el perfil con su teclado INLINE específico (para Volver y Menú Principal)
         await message.answer(profile_message, reply_markup=get_profile_keyboard())
     else:
         await message.answer(BOT_MESSAGES["profile_not_registered"])
@@ -471,6 +483,12 @@ async def show_profile_from_reply_keyboard(message: Message, session: AsyncSessi
 @router.message(F.text == "🗺 Misiones")
 async def show_missions_from_reply_keyboard(message: Message, session: AsyncSession):
     user_id = message.from_user.id
+    role = await get_user_role(message.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await message.answer("Esta función está disponible solo para miembros VIP.")
+        return
+    
     mission_service = MissionService(session)
     active_missions = await mission_service.get_active_missions(user_id=user_id)
     await set_user_menu_state(session, user_id, "missions")
@@ -483,6 +501,12 @@ async def show_missions_from_reply_keyboard(message: Message, session: AsyncSess
 @router.message(F.text == "🎁 Recompensas")
 async def show_rewards_from_reply_keyboard(message: Message, session: AsyncSession):
     user_id = message.from_user.id
+    role = await get_user_role(message.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await message.answer("Esta función está disponible solo para miembros VIP.")
+        return
+    
     reward_service = RewardService(session)
     user = await session.get(User, user_id)
     user_points = int(user.points) if user else 0
@@ -498,6 +522,12 @@ async def show_rewards_from_reply_keyboard(message: Message, session: AsyncSessi
 @router.message(F.text == "🏆 Ranking")
 async def show_ranking_from_reply_keyboard(message: Message, session: AsyncSession):
     user_id = message.from_user.id
+    role = await get_user_role(message.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await message.answer("Esta función está disponible solo para miembros VIP.")
+        return
+    
     point_service = PointService(session)
     top_users = await point_service.get_top_users(limit=10)
     ranking_message = await get_ranking_message(top_users)
@@ -507,18 +537,25 @@ async def show_ranking_from_reply_keyboard(message: Message, session: AsyncSessi
 
 @router.message(F.text.regexp("/checkin"))
 async def handle_daily_checkin(message: Message, session: AsyncSession, bot: Bot):
+    user_id = message.from_user.id
+    role = await get_user_role(bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await message.answer("Esta función está disponible solo para miembros VIP.")
+        return
+    
     service = PointService(session)
-    success, progress = await service.daily_checkin(message.from_user.id, bot)
+    success, progress = await service.daily_checkin(user_id, bot)
     mission_service = MissionService(session)
     completed_challenges = []
     if success:
         completed_challenges = await mission_service.increment_challenge_progress(
-            message.from_user.id,
+            user_id,
             "checkins",
             bot=bot,
         )
         await mission_service.update_progress(
-            message.from_user.id,
+            user_id,
             "login_streak",
             current_value=progress.checkin_streak,
             bot=bot,
@@ -531,19 +568,19 @@ async def handle_daily_checkin(message: Message, session: AsyncSession, bot: Bot
         await message.answer(BOT_MESSAGES["checkin_already_done"])
 
 
-# IMPORTANTE: Este handler debe ir AL FINAL de todos los otros F.text handlers,
-# porque si no, podría capturar otros mensajes antes de que sean procesados por handlers más específicos.
+# Handler para mensajes no reconocidos
 @router.message(F.text)
 async def handle_unrecognized_text(message: Message, session: AsyncSession, bot: Bot):
     """Handle arbitrary text depending on the user's role."""
     user_id = message.from_user.id
+    role = await get_user_role(bot, user_id, session=session)
 
-    if is_admin(user_id):
+    if role == "admin":
         await message.answer(
             BOT_MESSAGES["unrecognized_command_text"],
             reply_markup=get_admin_main_kb(),
         )
-    elif await is_vip_member(bot, user_id, session=session):
+    elif role == "vip":
         await message.answer(
             BOT_MESSAGES["unrecognized_command_text"],
             reply_markup=get_main_menu_keyboard(),
