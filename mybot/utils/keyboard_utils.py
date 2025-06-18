@@ -16,6 +16,7 @@ def get_main_menu_keyboard():
         [InlineKeyboardButton(text="👤 Perfil", callback_data="menu:profile")],
         [InlineKeyboardButton(text="🗺 Misiones", callback_data="menu:missions")],
         [InlineKeyboardButton(text="🎁 Recompensas", callback_data="menu:rewards")],
+        [InlineKeyboardButton(text="🏛️ Subastas", callback_data="auction_main")],
         [InlineKeyboardButton(text="🏆 Ranking", callback_data="menu:ranking")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -214,7 +215,7 @@ def get_admin_manage_content_keyboard():
             ],
             [
                 InlineKeyboardButton(
-                    text="📦 Subastas", callback_data="admin_content_auctions"
+                    text="🏛️ Subastas", callback_data="admin_auction_main"
                 )
             ],
             [
@@ -364,7 +365,12 @@ def get_admin_content_auctions_keyboard():
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text="Bot\u00f3n de prueba", callback_data="admin_game_test"
+                    text="🏛️ Gestionar Subastas", callback_data="admin_auction_main"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="📊 Estadísticas", callback_data="admin_auction_stats"
                 )
             ],
             [
@@ -426,6 +432,7 @@ def get_root_menu():
         [InlineKeyboardButton(text="👤 Perfil", callback_data="menu:profile")],
         [InlineKeyboardButton(text="🗺 Misiones", callback_data="menu:missions")],
         [InlineKeyboardButton(text="🎁 Recompensas", callback_data="menu:rewards")],
+        [InlineKeyboardButton(text="🏛️ Subastas", callback_data="auction_main")],
         [InlineKeyboardButton(text="🏆 Ranking", callback_data="menu:ranking")],
     ]
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -469,7 +476,8 @@ def get_main_reply_keyboard():
     keyboard = ReplyKeyboardMarkup(
         keyboard=[
             [KeyboardButton(text="👤 Perfil"), KeyboardButton(text="🗺 Misiones")],
-            [KeyboardButton(text="🎁 Recompensas"), KeyboardButton(text="🏆 Ranking")],
+            [KeyboardButton(text="🎁 Recompensas"), KeyboardButton(text="🏛️ Subastas")],
+            [KeyboardButton(text="🏆 Ranking")],
         ],
         resize_keyboard=True,  # Make the keyboard smaller
         one_time_keyboard=False,  # Keep the keyboard visible

@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from services.achievement_service import ACHIEVEMENTS
 from utils.messages import BOT_MESSAGES
+from utils.text_utils import anonymize_username
 import datetime
 
 
@@ -102,7 +103,7 @@ async def get_reward_details_message(reward: Reward, user_points: int) -> str:
 
 async def get_ranking_message(users_ranking: list[User]) -> str:
     """
-    Generates a formatted message for the user ranking.
+    Generates a formatted message for the user ranking with anonymized usernames.
     """
     ranking_text = BOT_MESSAGES["ranking_title"] + "\n\n"
 
@@ -110,16 +111,16 @@ async def get_ranking_message(users_ranking: list[User]) -> str:
         return ranking_text + BOT_MESSAGES["no_ranking_data"]
 
     for i, user in enumerate(users_ranking):
-        # Format each user entry
-        # Usa user.username si está disponible, de lo contrario, user.first_name
-        display_name = (
-            user.username
-            if user.username
-            else user.first_name if user.first_name else "Usuario Desconocido"
-        )
+        # Anonymize usernames for all users except when viewing own ranking
+        # Since we don't have the viewer's ID here, we'll anonymize all for privacy
+        display_name = anonymize_username(user, -1)  # -1 means anonymize for everyone
+        
         ranking_text += (
             BOT_MESSAGES["ranking_entry"].format(
-                rank=i + 1, username=display_name, points=user.points, level=user.level
+                rank=i + 1, 
+                username=display_name, 
+                points=user.points, 
+                level=user.level
             )
             + "\n"
         )

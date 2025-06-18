@@ -519,6 +519,24 @@ async def show_rewards_from_reply_keyboard(message: Message, session: AsyncSessi
     )
 
 
+@router.message(F.text == "🏛️ Subastas")
+async def show_auctions_from_reply_keyboard(message: Message, session: AsyncSession):
+    """Handle auction access from reply keyboard."""
+    user_id = message.from_user.id
+    role = await get_user_role(message.bot, user_id, session=session)
+    
+    if role not in ["vip", "admin"]:
+        await message.answer("Esta función está disponible solo para miembros VIP.")
+        return
+    
+    from keyboards.auction_kb import get_auction_main_kb
+    await set_user_menu_state(session, user_id, "auction_main")
+    await message.answer(
+        "🏛️ **Subastas en Tiempo Real**\n\nParticipa en subastas exclusivas y gana premios únicos.",
+        reply_markup=get_auction_main_kb(),
+    )
+
+
 @router.message(F.text == "🏆 Ranking")
 async def show_ranking_from_reply_keyboard(message: Message, session: AsyncSession):
     user_id = message.from_user.id

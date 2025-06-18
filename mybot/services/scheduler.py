@@ -8,6 +8,7 @@ from sqlalchemy import select
 from database.models import PendingChannelRequest, BotConfig, User
 from utils.config import CHANNEL_SCHEDULER_INTERVAL, VIP_SCHEDULER_INTERVAL
 from services.config_service import ConfigService
+from services.auction_service import AuctionService
 
 
 async def run_channel_request_check(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
@@ -120,3 +121,30 @@ async def vip_subscription_scheduler(bot: Bot, session_factory: async_sessionmak
         raise
     except Exception:
         logging.exception("Unhandled error in VIP subscription scheduler")
+
+
+async def run_auction_monitor_check(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
+    """Check for expired auctions and end them automatically."""
+    async with session_factory() as session:
+        auction_service = AuctionService(session)
+        try:
+            expired_auctions = await auction_service.check_expired_auctions(bot)
+            if expired_auctions:
+                logging.info(f"Auto-ended {len(expired_auctions)} expired auctions")
+        except Exception as e:
+            logging.exception("Error in auction monitor check: %s", e)
+
+
+async def auction_monitor_scheduler(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
+    """Background task monitoring auction expirations."""
+    logging.info("Auction monitor scheduler started")
+    interval = 60  # Check every minute for auction expirations
+    try:
+        while True:
+            await run_auction_monitor_check(bot, session_factory)
+            await asyncio.sleep(interval)
+    except asyncio.CancelledError:
+        logging.info("Auction monitor scheduler cancelled")
+        raise
+    except Exception:
+        logging.exception("Unhandled error in auction monitor scheduler")

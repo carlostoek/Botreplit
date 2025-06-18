@@ -160,3 +160,20 @@ class AdminManualBadgeStates(StatesGroup):
 
     waiting_for_user = State()
     waiting_for_badge = State()
+
+
+class AdminAuctionStates(StatesGroup):
+    """States for managing auctions."""
+    
+    creating_auction_name = State()
+    creating_auction_description = State()
+    creating_auction_prize = State()
+    creating_auction_initial_price = State()
+    creating_auction_duration = State()
+    creating_auction_settings = State()
+    confirming_auction_creation = State()
+    
+    # Auction management states
+    selecting_auction_to_end = State()
+    selecting_auction_to_cancel = State()
+    confirming_auction_action = State()

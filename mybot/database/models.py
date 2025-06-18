@@ -11,14 +11,23 @@ from sqlalchemy import (
     ForeignKey,
     Float,
     UniqueConstraint,
+    Enum,
 )
 from uuid import uuid4
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 from sqlalchemy.ext.asyncio import AsyncAttrs
 from sqlalchemy.future import select
+import enum
 
 Base = declarative_base()
+
+
+class AuctionStatus(enum.Enum):
+    PENDING = "pending"
+    ACTIVE = "active"
+    ENDED = "ended"
+    CANCELLED = "cancelled"
 
 
 class User(AsyncAttrs, Base):
@@ -42,15 +51,12 @@ class User(AsyncAttrs, Base):
     vip_expires_at = Column(DateTime, nullable=True)
     last_reminder_sent_at = Column(DateTime, nullable=True)
 
-    # ¡NUEVA COLUMNA para el estado del menú!
+    # Menu state management
     menu_state = Column(
         String, default="root"
     )  # e.g., "root", "profile", "missions", "rewards"
 
-    # ¡NUEVA COLUMNA para registrar reacciones a mensajes del canal!
-    # Guarda un diccionario donde la clave es el message_id del canal y el valor es un booleano (True)
-    # o el timestamp de la reacción para futura expansión si necesitamos historial.
-    # Por ahora, un simple booleano es suficiente para registrar si el usuario ya reaccionó a ese mensaje.
+    # Channel reactions tracking
     channel_reactions = Column(JSON, default={})  # {'message_id': True}
 
 
@@ -335,6 +341,62 @@ class ButtonReaction(AsyncAttrs, Base):
     user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     reaction_type = Column(String, nullable=False)
     created_at = Column(DateTime, default=func.now())
+
+
+# NEW AUCTION SYSTEM MODELS
+class Auction(AsyncAttrs, Base):
+    """Real-time auction system."""
+    
+    __tablename__ = "auctions"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    prize_description = Column(Text, nullable=False)
+    initial_price = Column(Integer, nullable=False)  # Starting bid amount in points
+    current_highest_bid = Column(Integer, default=0)
+    highest_bidder_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
+    winner_id = Column(BigInteger, ForeignKey("users.id"), nullable=True)
+    status = Column(Enum(AuctionStatus), default=AuctionStatus.PENDING)
+    start_time = Column(DateTime, nullable=False)
+    end_time = Column(DateTime, nullable=False)
+    created_by = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    ended_at = Column(DateTime, nullable=True)
+    
+    # Auction settings
+    min_bid_increment = Column(Integer, default=10)  # Minimum increment for new bids
+    max_participants = Column(Integer, nullable=True)  # Optional participant limit
+    auto_extend_minutes = Column(Integer, default=5)  # Auto-extend if bid in last X minutes
+
+
+class Bid(AsyncAttrs, Base):
+    """Individual bids in auctions."""
+    
+    __tablename__ = "bids"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    amount = Column(Integer, nullable=False)
+    timestamp = Column(DateTime, default=func.now())
+    is_winning = Column(Boolean, default=False)  # Track if this is currently the winning bid
+    
+    __table_args__ = (
+        UniqueConstraint("auction_id", "user_id", "amount", name="uix_auction_user_bid"),
+    )
+
+
+class AuctionParticipant(AsyncAttrs, Base):
+    """Track users participating in auctions for notifications."""
+    
+    __tablename__ = "auction_participants"
+    
+    auction_id = Column(Integer, ForeignKey("auctions.id"), primary_key=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), primary_key=True)
+    joined_at = Column(DateTime, default=func.now())
+    notifications_enabled = Column(Boolean, default=True)
+    last_notified_at = Column(DateTime, nullable=True)
 
 
 # Funciones para manejar el estado del menú del usuario
