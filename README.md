@@ -1,190 +1,219 @@
-# Botmaestro
+# Botmaestro - Sistema de Bot Multi-Tenant con Gamificación
 
-## Setup
+## 🌟 Características Principales
 
-1. Install dependencies:
+### ✨ Experiencia de Usuario Mejorada
+- **Gestión Inteligente de Mensajes**: Sin basura en el chat, mensajes temporales que se auto-eliminan
+- **Navegación Fluida**: Menús que se actualizan sin crear nuevos mensajes
+- **Interfaz Consistente**: Experiencia pulida y profesional en toda la aplicación
+- **Sistema de Navegación**: Historial de navegación con funcionalidad de "volver"
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+### 🏢 Sistema Multi-Tenant
+- **Configuración Independiente**: Cada administrador puede configurar su propio bot
+- **Setup Guiado**: Proceso de configuración inicial paso a paso
+- **Gestión de Canales**: Configuración separada de canales VIP y gratuitos
+- **Tarifas Personalizadas**: Sistema de suscripciones configurable por tenant
 
-2. Configure the environment. At a minimum the bot requires the Telegram token
-   in `BOT_TOKEN`. Several optional variables control behaviour:
+### 🎮 Sistema de Gamificación Universal
+- **Gamificación Lite para Usuarios Gratuitos**: Multiplicadores reducidos y funciones limitadas
+- **Gamificación Completa para VIP**: Acceso total con multiplicadores mejorados
+- **Sistema de Puntos Diferenciado**: Configuración automática según el tipo de usuario
+- **Misiones y Recompensas**: Sistema completo de engagement
 
-   ```bash
-   export BOT_TOKEN="<your_bot_token>"
-   export ADMIN_IDS="11111;22222"          # user IDs with admin privileges
-   export VIP_CHANNEL_ID="-100123456789"   # ID of the VIP Telegram channel
-   export FREE_CHANNEL_ID="-100987654321"  # ID of the free Telegram channel
-   export DATABASE_URL="sqlite+aiosqlite:///gamification.db"  # DB connection
-   export VIP_POINTS_MULTIPLIER="2"       # points multiplier for VIP members
-   export CHANNEL_SCHEDULER_INTERVAL="30" # seconds between channel checks
-   export VIP_SCHEDULER_INTERVAL="3600"   # seconds between VIP checks
-   ```
+## 🚀 Configuración Inicial
 
-   `DATABASE_URL` defaults to a local SQLite database. When running for the
-   first time the bot will automatically create all tables.
+### 1. Instalación de Dependencias
 
-## Environment variables
+```bash
+pip install -r requirements.txt
+```
 
-| Variable | Purpose |
-| -------- | ------- |
-| `BOT_TOKEN` | Telegram API token for the bot. **Required** |
-| `ADMIN_IDS` | Semicolon separated list of Telegram user IDs that act as administrators |
-| `VIP_CHANNEL_ID` | ID of the VIP Telegram channel. Users here are considered VIP |
-| `FREE_CHANNEL_ID` | ID of the free access channel for non‑VIP users |
-| `DATABASE_URL` | SQLAlchemy database URL. Defaults to `sqlite+aiosqlite:///gamification.db` |
-| `VIP_POINTS_MULTIPLIER` | Points multiplier applied when a VIP user earns points |
-| `CHANNEL_SCHEDULER_INTERVAL` | Seconds between checks for channel requests. Defaults to `30` |
-| `VIP_SCHEDULER_INTERVAL` | Seconds between VIP subscription checks. Defaults to `3600` |
-| `REACTION_BUTTONS` | Semicolon separated texts for reaction buttons used on channel posts |
+### 2. Variables de Entorno
 
-### Customising reaction buttons
+```bash
+export BOT_TOKEN="<your_bot_token>"
+export ADMIN_IDS="11111;22222"          # IDs de usuarios administradores
+export VIP_CHANNEL_ID="-100123456789"   # ID del canal VIP (opcional)
+export FREE_CHANNEL_ID="-100987654321"  # ID del canal gratuito (opcional)
+export DATABASE_URL="sqlite+aiosqlite:///gamification.db"  # Conexión a BD
+export VIP_POINTS_MULTIPLIER="2"        # Multiplicador de puntos VIP
+export CHANNEL_SCHEDULER_INTERVAL="30"  # Segundos entre verificaciones de canal
+export VIP_SCHEDULER_INTERVAL="3600"    # Segundos entre verificaciones VIP
+```
 
-The emojis shown below channel posts can be changed at runtime. Open the admin
-menu, choose **Configuración** and then **📝 Configurar Reacciones**. The bot
-asks for each reaction emoji individually (up to ten). When finished, press
-**Aceptar** to save the configuration.
-You can also set initial values using the `REACTION_BUTTONS` environment
-variable or by editing the `DEFAULT_REACTION_BUTTONS` list in
-`mybot/utils/config.py`.
+### 3. Inicialización de la Base de Datos
 
-3. Initialise the database and populate base data (tables, achievements,
-   levels and some starter missions). Run this command once after configuring
-   the environment:
+```bash
+python scripts/init_db.py
+```
 
-   ```bash
-   python scripts/init_db.py
-   ```
+### 4. Ejecutar el Bot
 
-4. Run the bot locally:
+```bash
+python mybot/bot.py
+```
 
-   ```bash
-   python mybot/bot.py
-   ```
+## 🛠️ Configuración Multi-Tenant
 
-## Roles and flows
+### Primer Uso (Administradores)
 
-The bot distinguishes between three roles:
+1. **Comando de Inicio**: Usa `/start` como administrador
+2. **Setup Guiado**: El bot detectará que es la primera vez y ofrecerá configuración guiada
+3. **Configuración de Canales**: 
+   - Reenvía mensajes de tus canales para detectar automáticamente los IDs
+   - O ingresa los IDs manualmente
+4. **Configuración de Tarifas**: Crea planes de suscripción VIP
+5. **Gamificación**: Configura el sistema de puntos y misiones
 
-* **Admins** – IDs listed in `ADMIN_IDS` can manage channels and bot
-  configuration using the admin menu.
-* **VIP users** – users recognised as VIP by their membership of the VIP
-  channel. VIPs get access to the full game, missions and rewards.
-* **Free users** – anyone else interacting with the bot. They can request
-  access to the free channel and have a simplified game experience.
+### Configuración Avanzada
 
-### VIP flow
+Accede al panel de administración con `/admin_menu` para:
+- Gestionar usuarios y suscripciones
+- Crear misiones y recompensas personalizadas
+- Configurar eventos y sorteos
+- Administrar el sistema de subastas
+- Personalizar mensajes y reacciones
 
-Users obtain VIP status via subscription tokens. Once activated they are added
-to the VIP channel (if configured) and can open the menu with `/vip_menu` to
-play the game, earn points and redeem rewards.
+## 👥 Roles y Flujos de Usuario
 
-### Free flow
+### 🔧 Administradores
+- **Panel de Control Completo**: Gestión total del bot y configuraciones
+- **Setup Multi-Tenant**: Configuración independiente por administrador
+- **Gestión de Contenido**: Control sobre gamificación, canales y usuarios
+- **Estadísticas**: Métricas detalladas de uso y engagement
 
-Non‑VIP users can request access to the free channel using the subscription
-menu. Join requests are stored in the database and automatically approved once
-the configured wait time has passed.
+### 💎 Usuarios VIP
+- **Gamificación Completa**: Acceso total al sistema de puntos y recompensas
+- **Multiplicadores Mejorados**: Puntos adicionales por actividades
+- **Subastas Exclusivas**: Participación en subastas en tiempo real
+- **Contenido Premium**: Acceso a canales y funciones exclusivas
 
-## Scheduler tasks
+### 🆓 Usuarios Gratuitos
+- **Gamificación Lite**: Sistema reducido pero funcional
+- **Multiplicadores Básicos**: Puntos estándar por actividades
+- **Acceso Limitado**: Funciones básicas y canal gratuito
+- **Upgrade Path**: Opciones claras para mejorar a VIP
 
-Two background loops run when the bot starts:
+## 🎯 Sistema de Gamificación
 
-1. **Pending channel requests** – checks for free channel join requests and
-   approves them after the wait time stored in the `bot_config` table.
-2. **VIP subscription monitor** – sends expiry reminders 24&nbsp;hours before a
-   VIP subscription ends and removes expired users from the VIP channel.
-   The frequency of these checks can be changed at runtime from the admin
-   panel or by setting `CHANNEL_SCHEDULER_INTERVAL` and
-   `VIP_SCHEDULER_INTERVAL` environment variables.
+### Características Universales
+- **Puntos por Actividad**: Mensajes, reacciones, check-ins diarios
+- **Sistema de Niveles**: Progresión basada en puntos acumulados
+- **Misiones Dinámicas**: Tareas diarias, semanales y especiales
+- **Insignias y Logros**: Reconocimientos por hitos alcanzados
+- **Ranking Global**: Competencia sana entre usuarios
 
+### Diferenciación VIP vs Gratuito
+- **Multiplicadores**: VIP 2x, Gratuito 1x (configurable)
+- **Acceso a Recompensas**: VIP acceso completo, Gratuito limitado
+- **Frecuencia de Misiones**: VIP más misiones disponibles
+- **Subastas**: Solo VIP puede participar
 
-## Estructura Lógica del Menú de Administración
+## 🏛️ Sistema de Subastas (VIP)
 
-Este proyecto está organizado mediante una interfaz de administración basada en menús jerárquicos, que estructuran las funcionalidades del bot de acuerdo a su propósito. Es fundamental respetar esta arquitectura lógica para garantizar coherencia, claridad y escalabilidad. A continuación, se describe cómo debe entenderse cada sección del menú:
+### Características
+- **Tiempo Real**: Subastas con temporizadores automáticos
+- **Auto-extensión**: Extensión automática si hay pujas de último minuto
+- **Notificaciones**: Alertas cuando otros usuarios superan tu puja
+- **Historial**: Seguimiento de participación y resultados
 
+### Gestión Administrativa
+- **Creación Flexible**: Configuración completa de duración, precios y premios
+- **Monitoreo**: Supervisión en tiempo real de todas las subastas
+- **Finalización Manual**: Opción de terminar subastas anticipadamente
+- **Estadísticas**: Métricas de participación y engagement
+
+## 📊 Tareas Programadas
+
+### Verificaciones Automáticas
+1. **Solicitudes de Canal**: Aprobación automática después del tiempo de espera
+2. **Suscripciones VIP**: Recordatorios de expiración y limpieza automática
+3. **Subastas**: Finalización automática y notificaciones de resultados
+
+### Configuración de Intervalos
+- Modificables desde el panel de administración
+- Variables de entorno para configuración inicial
+- Logs detallados para monitoreo
+
+## 🔧 Arquitectura del Sistema
+
+### Gestión de Menús
+- **MenuManager**: Gestión centralizada de mensajes y navegación
+- **MenuFactory**: Creación consistente de menús basada en roles
+- **Navegación Inteligente**: Historial y funcionalidad de "volver"
+
+### Servicios Multi-Tenant
+- **TenantService**: Gestión de configuraciones independientes
+- **ConfigService**: Almacenamiento de configuraciones por tenant
+- **Aislamiento de Datos**: Cada administrador gestiona su propia instancia
+
+### Base de Datos
+- **SQLAlchemy Async**: ORM moderno para operaciones asíncronas
+- **Migraciones Automáticas**: Creación automática de tablas en primer uso
+- **Escalabilidad**: Diseño preparado para múltiples tenants
+
+## 🚀 Preparación para Distribución Pública
+
+### Características de Distribución
+- **Setup Automático**: Configuración guiada para nuevos administradores
+- **Aislamiento Completo**: Cada instancia es independiente
+- **Documentación Integrada**: Guías y ayuda dentro del bot
+- **Configuración Flexible**: Adaptable a diferentes necesidades
+
+### Consideraciones de Seguridad
+- **Validación de Permisos**: Verificación estricta de roles
+- **Sanitización de Datos**: Limpieza automática de inputs
+- **Logs de Auditoría**: Registro detallado de acciones administrativas
+
+## 📈 Métricas y Estadísticas
+
+### Panel de Administración
+- **Usuarios Totales**: Conteo de usuarios registrados
+- **Suscripciones**: Activas, expiradas y ingresos
+- **Engagement**: Participación en gamificación
+- **Uso de Funciones**: Estadísticas de uso por característica
+
+### Exportación de Datos
+- **Reportes Automáticos**: Generación de reportes periódicos
+- **Métricas en Tiempo Real**: Dashboard actualizado constantemente
+- **Análisis de Tendencias**: Identificación de patrones de uso
+
+## 🔄 Actualizaciones y Mantenimiento
+
+### Versionado
+- **Migraciones Automáticas**: Actualización de BD sin pérdida de datos
+- **Compatibilidad**: Mantenimiento de compatibilidad hacia atrás
+- **Rollback**: Capacidad de revertir cambios si es necesario
+
+### Monitoreo
+- **Logs Estructurados**: Sistema de logging detallado
+- **Alertas Automáticas**: Notificaciones de errores críticos
+- **Métricas de Rendimiento**: Monitoreo de performance del bot
+
+## 📞 Soporte y Documentación
+
+### Recursos Disponibles
+- **Documentación Integrada**: Ayuda accesible desde el bot
+- **Guías de Setup**: Tutoriales paso a paso
+- **FAQ**: Preguntas frecuentes y soluciones
+
+### Comunidad
+- **Canal de Soporte**: Asistencia técnica
+- **Actualizaciones**: Notificaciones de nuevas características
+- **Feedback**: Canal para sugerencias y mejoras
 
 ---
 
-🛠️ Menú Principal
+## 🎉 ¡Listo para Usar!
 
-Este es el panel de control general del bot. Aquí deben colocarse únicamente los accesos a funciones globales o nodos principales. No se deben colocar aquí botones o acciones específicas de gamificación ni de canales. Este menú contiene:
+Tu bot está ahora preparado para distribución pública con:
+- ✅ Experiencia de usuario pulida y profesional
+- ✅ Sistema multi-tenant completamente funcional
+- ✅ Gamificación diferenciada para VIP y usuarios gratuitos
+- ✅ Configuración guiada para nuevos administradores
+- ✅ Gestión inteligente de mensajes sin basura en el chat
+- ✅ Navegación fluida y consistente
+- ✅ Sistema de subastas en tiempo real
+- ✅ Arquitectura escalable y mantenible
 
-Acceso a la gestión de canales (VIP y free)
-
-Acceso al módulo de juego (gamificación)
-
-Configuraciones generales y de seguridad
-
-Personalización de los textos de reacción que acompañan las publicaciones de canal
-
-Sección de estadísticas del bot
-
-
-
----
-
-🔐 Opción: Canal VIP 
-
-Este submenú agrupa únicamente las funciones específicas para administrar el canal VIP. Las acciones que deben ir aquí incluyen:
-
-Configuración del canal VIP (ID, invitaciones, acceso)
-
-Planes de suscripción y tarifas
-
-Visualización de usuarios VIP y expiraciones
-
-Acciones administrativas aplicables solo al canal VIP
-
-
-⚠️ No deben colocarse aquí funciones relacionadas con el canal Free ni con la gamificación.
-
-
----
-
-🎁 Opción: Canal Free
-
-Este submenú está dedicado exclusivamente a la configuración y gestión del canal gratuito. Las funciones típicas incluyen:
-
-Registro del ID del canal Free
-
-Control de accesos gratuitos o limitados
-
-Configuración de contenido gratuito
-
-
-⚠️ Este submenú no debe incluir botones del canal VIP ni funciones del sistema de juego.
-
-
----
-
-🎮 Opción: Juego Kinky 
-
-Este es el núcleo del sistema de gamificación y debe incluir todas las funciones relacionadas al sistema de juego, independientemente de cuántos canales haya.
-
-Desde aquí se administra:
-
-Reglas de gamificación global (puntos, niveles, logros, misiones)
-
-Visualización y asignación de insignias
-
-Competencias, rankings y lógica de progreso
-
-Configuración de dinámicas del juego
-
-
-🔁 Este módulo es transversal y puede impactar a usuarios de ambos canales (VIP y Free), pero su administración siempre se hace desde aquí.
-
-
----
-
-🔒 Importante: No mezcles botones de un módulo en otro. El orden y ubicación correcta de los botones garantiza que el bot sea mantenible, escalable y fácil de entender para futuros desarrolladores y para Codex.
-
-
----
-
-## Project structure
-
-All active source code lives under the `mybot/` package. An earlier
-`old_gamificacion` folder containing a legacy prototype has been removed
-to avoid confusion.
+¡Comienza con `/start` y disfruta de la experiencia mejorada!
