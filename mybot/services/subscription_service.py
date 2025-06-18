@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from database.models import VipSubscription, User, Token, Tariff
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class SubscriptionService:
@@ -23,6 +26,7 @@ class SubscriptionService:
         self.session.add(sub)
         await self.session.commit()
         await self.session.refresh(sub)
+        logger.info(f"Created VIP subscription for user {user_id}, expires: {expires_at}")
         return sub
 
     async def get_statistics(self) -> tuple[int, int, int]:
@@ -73,6 +77,7 @@ class SubscriptionService:
         now = datetime.utcnow()
         sub = await self.get_subscription(user_id)
         new_exp = now + timedelta(days=days)
+        
         if sub:
             if sub.expires_at and sub.expires_at > now:
                 sub.expires_at = sub.expires_at + timedelta(days=days)
@@ -82,6 +87,7 @@ class SubscriptionService:
             sub = VipSubscription(user_id=user_id, expires_at=new_exp)
             self.session.add(sub)
 
+        # Update user record as well
         user = await self.session.get(User, user_id)
         if user:
             user.role = "vip"
@@ -92,6 +98,7 @@ class SubscriptionService:
             user.last_reminder_sent_at = None
 
         await self.session.commit()
+        logger.info(f"Extended VIP subscription for user {user_id} by {days} days")
         return sub
 
     async def revoke_subscription(self, user_id: int) -> None:
@@ -107,6 +114,18 @@ class SubscriptionService:
             user.vip_expires_at = None
 
         await self.session.commit()
+        logger.info(f"Revoked VIP subscription for user {user_id}")
+
+    async def is_subscription_active(self, user_id: int) -> bool:
+        """Check if user has an active VIP subscription."""
+        sub = await self.get_subscription(user_id)
+        if not sub:
+            return False
+        
+        if sub.expires_at is None:
+            return True
+        
+        return sub.expires_at > datetime.utcnow()
 
 
 async def get_admin_statistics(session: AsyncSession) -> dict:
@@ -119,6 +138,7 @@ async def get_admin_statistics(session: AsyncSession) -> dict:
     user_count_res = await session.execute(user_count_stmt)
     total_users = user_count_res.scalar() or 0
 
+    # Calculate revenue from used tokens
     revenue_stmt = (
         select(func.sum(Tariff.price))
         .select_from(Token)

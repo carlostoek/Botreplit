@@ -7,6 +7,9 @@ import os
 import time
 from typing import Dict, Tuple
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_VIP_MULTIPLIER = int(os.environ.get("VIP_POINTS_MULTIPLIER", "2"))
 
@@ -31,7 +34,13 @@ async def is_vip_member(bot: Bot, user_id: int, session: AsyncSession | None = N
             if user and user.role == "vip":
                 # Check if subscription is still valid
                 if user.vip_expires_at is None or user.vip_expires_at > datetime.utcnow():
+                    logger.debug(f"User {user_id} is VIP via database record")
                     return True
+                else:
+                    # Subscription expired, update role
+                    user.role = "free"
+                    await session.commit()
+                    logger.info(f"User {user_id} VIP subscription expired, updated to free")
             
             # Also check VipSubscription table
             stmt = select(VipSubscription).where(VipSubscription.user_id == user_id)
@@ -39,9 +48,12 @@ async def is_vip_member(bot: Bot, user_id: int, session: AsyncSession | None = N
             subscription = result.scalar_one_or_none()
             if subscription:
                 if subscription.expires_at is None or subscription.expires_at > datetime.utcnow():
+                    logger.debug(f"User {user_id} is VIP via subscription table")
                     return True
+                else:
+                    logger.debug(f"User {user_id} subscription expired")
         except Exception as e:
-            print(f"Error checking VIP status in database: {e}")
+            logger.error(f"Error checking VIP status in database for user {user_id}: {e}")
 
     # Fallback to channel membership check
     vip_channel_id = VIP_CHANNEL_ID
@@ -52,16 +64,19 @@ async def is_vip_member(bot: Bot, user_id: int, session: AsyncSession | None = N
             if stored_vip_id is not None:
                 vip_channel_id = stored_vip_id
         except Exception as e:
-            print(f"Error getting VIP channel ID from config: {e}")
+            logger.error(f"Error getting VIP channel ID from config: {e}")
 
     if not vip_channel_id:
+        logger.debug(f"No VIP channel configured, user {user_id} is not VIP")
         return False
 
     try:
         member = await bot.get_chat_member(vip_channel_id, user_id)
-        return member.status in {"member", "administrator", "creator"}
+        is_member = member.status in {"member", "administrator", "creator"}
+        logger.debug(f"User {user_id} channel membership check: {is_member} (status: {member.status})")
+        return is_member
     except Exception as e:
-        print(f"Error checking channel membership for user {user_id}: {e}")
+        logger.warning(f"Error checking channel membership for user {user_id}: {e}")
         return False
 
 
@@ -85,22 +100,26 @@ async def get_user_role(
     
     # Use cache only for non-admin users and only for 2 minutes
     if cached and now < cached[1] and not is_admin(user_id):
+        logger.debug(f"Using cached role for user {user_id}: {cached[0]}")
         return cached[0]
 
     # Check admin first (highest priority)
     if is_admin(user_id):
         role = "admin"
         _ROLE_CACHE[user_id] = (role, now + 120)  # cache for 2 minutes
+        logger.debug(f"User {user_id} is admin")
         return role
     
     # Check VIP status
     try:
         if await is_vip_member(bot, user_id, session=session):
             role = "vip"
+            logger.debug(f"User {user_id} is VIP")
         else:
             role = "free"
+            logger.debug(f"User {user_id} is free user")
     except Exception as e:
-        print(f"Error determining user role for {user_id}: {e}")
+        logger.error(f"Error determining user role for {user_id}: {e}")
         role = "free"
 
     _ROLE_CACHE[user_id] = (role, now + 120)  # cache for 2 minutes
@@ -111,5 +130,7 @@ def clear_role_cache(user_id: int = None):
     """Clear role cache for a specific user or all users."""
     if user_id:
         _ROLE_CACHE.pop(user_id, None)
+        logger.debug(f"Cleared role cache for user {user_id}")
     else:
         _ROLE_CACHE.clear()
+        logger.debug("Cleared all role cache")

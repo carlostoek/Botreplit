@@ -5,9 +5,13 @@ from secrets import token_urlsafe
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from database.models import InviteToken, SubscriptionToken, Token, Tariff
+from database.models import InviteToken, SubscriptionToken, Token, Tariff, User, VipSubscription
 from services.achievement_service import AchievementService
+from services.subscription_service import SubscriptionService
 from aiogram import Bot
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TokenService:
@@ -24,17 +28,26 @@ class TokenService:
         return obj
 
     async def activate_token(self, token_string: str, user_id: int) -> int:
-        stmt = select(Token).where(Token.token_string == token_string)
+        """Activate a VIP token and return the duration in days."""
+        stmt = select(Token).where(Token.token_string == token_string, Token.is_used == False)
         result = await self.session.execute(stmt)
         token = result.scalar_one_or_none()
-        if not token or token.is_used:
-            raise ValueError("invalid token")
+        
+        if not token:
+            logger.warning(f"Token activation failed: Token {token_string} not found or already used")
+            raise ValueError("Token inválido o ya utilizado")
+        
         tariff = await self.session.get(Tariff, token.tariff_id)
         if not tariff:
-            raise ValueError("tariff not found")
+            logger.error(f"Token activation failed: Tariff {token.tariff_id} not found")
+            raise ValueError("Tarifa no encontrada")
+        
+        # Mark token as used
         token.is_used = True
         token.user_id = user_id
         token.activated_at = datetime.utcnow()
+        
+        logger.info(f"Token {token_string} activated by user {user_id} for {tariff.duration_days} days")
         await self.session.commit()
         return tariff.duration_days
 
@@ -77,6 +90,7 @@ class TokenService:
         self.session.add(obj)
         await self.session.commit()
         await self.session.refresh(obj)
+        logger.info(f"VIP token created: {token_str} for tariff {tariff_id}")
         return obj
 
     async def invalidate_vip_token(self, token_string: str) -> bool:
@@ -88,12 +102,18 @@ class TokenService:
             return False
         await self.session.delete(obj)
         await self.session.commit()
+        logger.info(f"VIP token invalidated: {token_string}")
         return True
+
+    async def get_token_info(self, token_string: str) -> Token | None:
+        """Get token information without activating it."""
+        stmt = select(Token).where(Token.token_string == token_string)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
 
 
 async def validate_token(token: str, session: AsyncSession) -> str | None:
     """Validate a legacy VIP activation token and mark it as used."""
-
     stmt = select(Token).where(Token.token_string == token)
     result = await session.execute(stmt)
     obj = result.scalar_one_or_none()
@@ -105,4 +125,3 @@ async def validate_token(token: str, session: AsyncSession) -> str | None:
     obj.is_used = True
     await session.commit()
     return tariff.duration_days
-
