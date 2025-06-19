@@ -24,6 +24,9 @@ from keyboards.setup_kb import (
 )
 from utils.text_utils import sanitize_text
 
+# Importar menu_factory para crear menús específicos si es necesario
+from utils.menu_factory import menu_factory 
+
 logger = logging.getLogger(__name__)
 router = Router()
 
@@ -33,8 +36,13 @@ class SetupStates(StatesGroup):
     waiting_for_free_channel = State()
     waiting_for_channel_confirmation = State()
     waiting_for_manual_channel_id = State()
-    configuring_tariffs = State()
-    configuring_gamification = State()
+    # Más estados si necesitas pasos interactivos para configurar cada elemento
+    # Por ahora, estos se manejarán con callbacks directos al menú de setup
+    # configuring_tariffs = State() 
+    # configuring_gamification = State()
+    # waiting_for_tariff_details = State()
+    # waiting_for_mission_details = State()
+
 
 @router.message(Command("setup"))
 async def start_setup(message: Message, session: AsyncSession):
@@ -61,46 +69,40 @@ async def start_setup(message: Message, session: AsyncSession):
     status = init_result["status"]
     
     if status["basic_setup_complete"]:
+        text, keyboard = await menu_factory.create_menu("setup_complete", message.from_user.id, session, message.bot)
         await menu_manager.show_menu(
             message,
-            "✅ **Configuración Completada**\n\n"
-            "Tu bot ya está configurado y listo para usar. Puedes acceder al "
-            "panel de administración o realizar configuraciones adicionales.",
-            get_setup_complete_kb(),
+            text,
+            keyboard,
             session,
-            "setup_complete"
+            "setup_complete",
+            delete_origin_message=True # Añadido: borrar el comando /setup
         )
     else:
+        text, keyboard = await menu_factory.create_menu("setup_main", message.from_user.id, session, message.bot)
         await menu_manager.show_menu(
             message,
-            "🚀 **Bienvenido a la Configuración Inicial**\n\n"
-            "¡Hola! Vamos a configurar tu bot paso a paso para que esté listo "
-            "para tus usuarios. Este proceso es rápido y fácil.\n\n"
-            "**¿Qué vamos a configurar?**\n"
-            "• 📢 Canales (VIP y/o Gratuito)\n"
-            "• 💳 Tarifas de suscripción\n"
-            "• 🎮 Sistema de gamificación\n\n"
-            "¡Empecemos!",
-            get_setup_main_kb(),
+            text,
+            keyboard,
             session,
-            "setup_main"
+            "setup_main",
+            delete_origin_message=True # Añadido: borrar el comando /setup
         )
 
+# -- Canal handlers --
 @router.callback_query(F.data == "setup_channels")
 async def setup_channels_menu(callback: CallbackQuery, session: AsyncSession):
     """Show channel configuration options."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
+    # Usar menu_factory para obtener el texto y teclado, si lo tienes definido allí
+    # O seguir usando el texto fijo y get_setup_channels_kb()
+    text, keyboard = await menu_factory.create_menu("setup_channels", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
-        "📢 **Configuración de Canales**\n\n"
-        "Los canales son el corazón de tu bot. Puedes configurar:\n\n"
-        "🔐 **Canal VIP**: Para suscriptores premium\n"
-        "🆓 **Canal Gratuito**: Para usuarios sin suscripción\n\n"
-        "**Recomendación**: Configura al menos un canal para empezar. "
-        "Puedes agregar más canales después desde el panel de administración.",
-        get_setup_channels_kb(),
+        text,
+        keyboard,
         session,
         "setup_channels"
     )
@@ -112,13 +114,17 @@ async def setup_vip_channel(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
-    await callback.message.edit_text(
+    # Es mejor usar menu_manager.update_menu aquí para mantener el historial
+    await menu_manager.update_menu(
+        callback,
         "🔐 **Configurar Canal VIP**\n\n"
         "Para configurar tu canal VIP, reenvía cualquier mensaje de tu canal aquí. "
         "El bot detectará automáticamente el ID del canal.\n\n"
         "**Importante**: Asegúrate de que el bot sea administrador del canal "
         "con permisos para invitar usuarios.",
-        reply_markup=get_setup_confirmation_kb("cancel_channel_setup")
+        get_setup_confirmation_kb("cancel_channel_setup"), # Puedes cambiar este a un teclado específico para cancelar el canal
+        session=None, # No necesitas session aquí, solo para la vista
+        menu_state="setup_vip_channel_prompt" # Nuevo estado para el historial
     )
     
     await state.set_state(SetupStates.waiting_for_vip_channel)
@@ -130,18 +136,41 @@ async def setup_free_channel(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
-    await callback.message.edit_text(
+    await menu_manager.update_menu(
+        callback,
         "🆓 **Configurar Canal Gratuito**\n\n"
         "Para configurar tu canal gratuito, reenvía cualquier mensaje de tu canal aquí. "
         "El bot detectará automáticamente el ID del canal.\n\n"
         "**Importante**: Asegúrate de que el bot sea administrador del canal "
         "con permisos para aprobar solicitudes de unión.",
-        reply_markup=get_setup_confirmation_kb("cancel_channel_setup")
+        get_setup_confirmation_kb("cancel_channel_setup"), # Puedes cambiar este a un teclado específico para cancelar el canal
+        session=None,
+        menu_state="setup_free_channel_prompt" # Nuevo estado para el historial
     )
     
     await state.set_state(SetupStates.waiting_for_free_channel)
     await callback.answer()
 
+@router.callback_query(F.data == "setup_both_channels")
+async def setup_both_channels(callback: CallbackQuery, session: AsyncSession):
+    """Placeholder for configuring both channels."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    # Podrías iniciar un flujo de FSM para ambos, o simplemente redirigir
+    # Por simplicidad, volvemos al menú de canales y mostramos un mensaje
+    await menu_manager.update_menu(
+        callback,
+        "🛠️ **Configuración de Ambos Canales (Próximamente)**\n\n"
+        "Esta opción te guiará para configurar ambos canales simultáneamente. "
+        "Por ahora, por favor, configúralos individualmente. Gracias.",
+        get_setup_channels_kb(),
+        session,
+        "setup_channels"
+    )
+    await callback.answer()
+
+# Handlers para procesamiento de canales reenviados/manuales
 @router.message(SetupStates.waiting_for_vip_channel)
 async def process_vip_channel(message: Message, state: FSMContext, session: AsyncSession):
     """Process VIP channel configuration."""
@@ -155,25 +184,32 @@ async def process_vip_channel(message: Message, state: FSMContext, session: Asyn
         channel_id = message.forward_from_chat.id
         channel_title = message.forward_from_chat.title
     else:
-        try:
-            channel_id = int(message.text.strip())
-        except ValueError:
+        # Check if it's a manual ID input
+        if message.text and message.text.strip().startswith("-100"): # Los IDs de canal empiezan con -100
+             try:
+                channel_id = int(message.text.strip())
+             except ValueError:
+                pass # Se manejará como ID inválido
+        
+        if not channel_id:
             await menu_manager.send_temporary_message(
                 message,
                 "❌ **ID Inválido**\n\nPor favor, reenvía un mensaje del canal o ingresa un ID válido.",
                 auto_delete_seconds=5
             )
-            return
+            return await state.set_state(SetupStates.waiting_for_vip_channel) # Volver a esperar
     
     # Store channel info for confirmation
     await state.update_data(
         channel_type="vip",
         channel_id=channel_id,
-        channel_title=channel_title
+        channel_title=channel_title,
+        message_to_edit_id=message.message_id # Guarda el ID del mensaje del usuario para posible borrado
     )
     
-    title_text = f" ({channel_title})" if channel_title else ""
+    title_text = f" ({sanitize_text(channel_title)})" if channel_title else ""
     
+    # Enviar un nuevo mensaje con la confirmación
     await message.answer(
         f"✅ **Canal VIP Detectado**\n\n"
         f"**ID del Canal**: `{channel_id}`{title_text}\n\n"
@@ -196,24 +232,30 @@ async def process_free_channel(message: Message, state: FSMContext, session: Asy
         channel_id = message.forward_from_chat.id
         channel_title = message.forward_from_chat.title
     else:
-        try:
-            channel_id = int(message.text.strip())
-        except ValueError:
+        # Check if it's a manual ID input
+        if message.text and message.text.strip().startswith("-100"):
+            try:
+                channel_id = int(message.text.strip())
+            except ValueError:
+                pass
+        
+        if not channel_id:
             await menu_manager.send_temporary_message(
                 message,
                 "❌ **ID Inválido**\n\nPor favor, reenvía un mensaje del canal o ingresa un ID válido.",
                 auto_delete_seconds=5
             )
-            return
+            return await state.set_state(SetupStates.waiting_for_free_channel) # Volver a esperar
     
     # Store channel info for confirmation
     await state.update_data(
         channel_type="free",
         channel_id=channel_id,
-        channel_title=channel_title
+        channel_title=channel_title,
+        message_to_edit_id=message.message_id
     )
     
-    title_text = f" ({channel_title})" if channel_title else ""
+    title_text = f" ({sanitize_text(channel_title)})" if channel_title else ""
     
     await message.answer(
         f"✅ **Canal Gratuito Detectado**\n\n"
@@ -224,7 +266,8 @@ async def process_free_channel(message: Message, state: FSMContext, session: Asy
     
     await state.set_state(SetupStates.waiting_for_channel_confirmation)
 
-@router.callback_query(F.data == "confirm_channel")
+# Handlers para botones de confirmación de canal
+@router.callback_query(F.data == "confirm_channel", SetupStates.waiting_for_channel_confirmation)
 async def confirm_channel_setup(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     """Confirm and save channel configuration."""
     if not is_admin(callback.from_user.id):
@@ -257,196 +300,321 @@ async def confirm_channel_setup(callback: CallbackQuery, state: FSMContext, sess
     
     if result["success"]:
         channel_name = "VIP" if channel_type == "vip" else "Gratuito"
+        # Volver al menú principal de setup
+        text, keyboard = await menu_factory.create_menu("setup_main", callback.from_user.id, session, callback.bot)
         await menu_manager.update_menu(
             callback,
             f"✅ **Canal {channel_name} Configurado**\n\n"
             f"El canal ha sido configurado exitosamente.\n\n"
-            f"**Siguiente paso**: ¿Quieres configurar más elementos?",
-            get_setup_main_kb(),
+            f"**Siguiente paso**: {text}", # Añade el texto del menú principal
+            keyboard,
             session,
             "setup_main"
         )
     else:
-        await callback.message.edit_text(
+        await menu_manager.update_menu( # Usar update_menu en lugar de message.edit_text
+            callback,
             f"❌ **Error de Configuración**\n\n{result['error']}",
-            reply_markup=get_setup_channels_kb()
+            get_setup_channels_kb(),
+            session,
+            "setup_channels"
         )
     
     await state.clear()
     await callback.answer()
 
-@router.callback_query(F.data == "setup_gamification")
-async def setup_gamification_menu(callback: CallbackQuery, session: AsyncSession):
-    """Show gamification setup options."""
+@router.callback_query(F.data == "detect_another", SetupStates.waiting_for_channel_confirmation)
+async def detect_another_channel(callback: CallbackQuery, state: FSMContext):
+    """Allow user to try detecting another channel."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
+    data = await state.get_data()
+    channel_type = data.get("channel_type")
+    
+    if channel_type == "vip":
+        await menu_manager.update_menu(
+            callback,
+            "🔐 **Reintentar Canal VIP**\n\n"
+            "Por favor, reenvía un mensaje de tu canal VIP o ingresa el ID manualmente.",
+            get_setup_confirmation_kb("cancel_channel_setup"), # Puedes mejorar este teclado
+            session=None,
+            menu_state="setup_vip_channel_prompt"
+        )
+        await state.set_state(SetupStates.waiting_for_vip_channel)
+    else:
+        await menu_manager.update_menu(
+            callback,
+            "🆓 **Reintentar Canal Gratuito**\n\n"
+            "Por favor, reenvía un mensaje de tu canal Gratuito o ingresa el ID manualmente.",
+            get_setup_confirmation_kb("cancel_channel_setup"),
+            session=None,
+            menu_state="setup_free_channel_prompt"
+        )
+        await state.set_state(SetupStates.waiting_for_free_channel)
+    await callback.answer()
+
+@router.callback_query(F.data == "manual_channel_id", SetupStates.waiting_for_channel_confirmation)
+async def manual_channel_id_prompt(callback: CallbackQuery, state: FSMContext):
+    """Prompt for manual channel ID input."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    data = await state.get_data()
+    channel_type = data.get("channel_type")
+    
     await menu_manager.update_menu(
         callback,
-        "🎮 **Configuración de Gamificación**\n\n"
-        "El sistema de gamificación mantiene a tus usuarios comprometidos con:\n\n"
-        "🎯 **Misiones**: Tareas que los usuarios pueden completar\n"
-        "🏅 **Insignias**: Reconocimientos por logros\n"
-        "🎁 **Recompensas**: Premios por acumular puntos\n"
-        "📊 **Niveles**: Sistema de progresión\n\n"
-        "**Recomendación**: Usa la configuración por defecto para empezar rápido.",
-        get_setup_gamification_kb(),
+        f"📝 **Ingresa el ID del Canal {channel_type.upper()}**\n\n"
+        f"Por favor, ingresa el ID numérico de tu canal {channel_type}. "
+        f"Normalmente empieza con `-100`.",
+        get_setup_confirmation_kb("cancel_channel_setup"),
+        session=None,
+        menu_state="setup_manual_channel_id_prompt"
+    )
+    await state.set_state(SetupStates.waiting_for_manual_channel_id)
+    await callback.answer()
+
+@router.message(SetupStates.waiting_for_manual_channel_id)
+async def process_manual_channel_id(message: Message, state: FSMContext, session: AsyncSession):
+    """Process manually entered channel ID."""
+    if not is_admin(message.from_user.id):
+        return
+    
+    try:
+        channel_id = int(message.text.strip())
+        if not str(channel_id).startswith("-100"):
+            raise ValueError("Invalid channel ID format")
+            
+        data = await state.get_data()
+        channel_type = data.get("channel_type")
+        
+        # Store channel info for confirmation
+        await state.update_data(
+            channel_id=channel_id,
+            channel_title=None, # Manual input usually means no title initially
+            message_to_edit_id=message.message_id
+        )
+        
+        await message.answer(
+            f"✅ **ID de Canal {channel_type.upper()} Ingresado**\n\n"
+            f"**ID del Canal**: `{channel_id}`\n\n"
+            f"¿Es este el canal correcto?",
+            reply_markup=get_channel_detection_kb()
+        )
+        await state.set_state(SetupStates.waiting_for_channel_confirmation)
+        
+    except ValueError:
+        await menu_manager.send_temporary_message(
+            message,
+            "❌ **ID Inválido**\n\nPor favor, ingresa un ID numérico válido para el canal. "
+            "Debe empezar con `-100`.",
+            auto_delete_seconds=7
+        )
+        await state.set_state(SetupStates.waiting_for_manual_channel_id) # Volver a esperar
+    
+# -- Gamification Handlers --
+# setup_gamification_menu ya existe
+
+# setup_default_game ya existe
+
+@router.callback_query(F.data == "setup_missions")
+async def setup_missions(callback: CallbackQuery, session: AsyncSession):
+    """Handle setup missions click."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    # Lógica para configurar misiones (puede ser un sub-menú, un FSM, o mensaje de info)
+    await menu_manager.update_menu(
+        callback,
+        "🎯 **Configurar Misiones**\n\n"
+        "Aquí podrás definir las misiones que tus usuarios pueden completar. "
+        "Esto podría implicar crear nuevas misiones o editar existentes.\n\n"
+        "*(Implementación futura: Interfaz para crear/editar misiones)*",
+        get_setup_gamification_kb(), # Volver al menú de gamificación por ahora
         session,
-        "setup_gamification"
+        "setup_missions_info" # Nuevo estado para el historial si es necesario
     )
     await callback.answer()
 
-@router.callback_query(F.data == "setup_default_game")
-async def setup_default_gamification(callback: CallbackQuery, session: AsyncSession):
-    """Set up default gamification elements."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    tenant_service = TenantService(session)
-    result = await tenant_service.setup_default_gamification(callback.from_user.id)
-    
-    if result["success"]:
-        await menu_manager.update_menu(
-            callback,
-            "✅ **Gamificación Configurada**\n\n"
-            "Se ha configurado el sistema de gamificación con:\n\n"
-            f"🎯 **Misiones creadas**: {len(result['missions_created'])}\n"
-            f"📊 **Niveles inicializados**: {'Sí' if result['levels_initialized'] else 'No'}\n"
-            f"🏆 **Logros inicializados**: {'Sí' if result['achievements_initialized'] else 'No'}\n\n"
-            "Los usuarios ya pueden empezar a ganar puntos y completar misiones.",
-            get_setup_main_kb(),
-            session,
-            "setup_main"
-        )
-    else:
-        await callback.message.edit_text(
-            f"❌ **Error de Configuración**\n\n{result['error']}",
-            reply_markup=get_setup_gamification_kb()
-        )
-    
-    await callback.answer()
-
-@router.callback_query(F.data == "setup_tariffs")
-async def setup_tariffs_menu(callback: CallbackQuery, session: AsyncSession):
-    """Show tariff setup options."""
+@router.callback_query(F.data == "setup_badges")
+async def setup_badges(callback: CallbackQuery, session: AsyncSession):
+    """Handle setup badges click."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
     await menu_manager.update_menu(
         callback,
-        "💳 **Configuración de Tarifas VIP**\n\n"
-        "Las tarifas determinan los precios y duración de las suscripciones VIP.\n\n"
-        "**Opciones disponibles**:\n"
-        "💎 **Básica**: Tarifa estándar de 30 días\n"
-        "👑 **Premium**: Tarifa de 90 días con descuento\n"
-        "🎯 **Personalizada**: Crea tus propias tarifas\n\n"
-        "**Recomendación**: Empieza con las tarifas básica y premium.",
+        "🏅 **Configurar Insignias**\n\n"
+        "Define las insignias que tus usuarios pueden ganar por sus logros. "
+        "Las insignias añaden un elemento de prestigio.\n\n"
+        "*(Implementación futura: Interfaz para crear/editar insignias)*",
+        get_setup_gamification_kb(),
+        session,
+        "setup_badges_info"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "setup_rewards")
+async def setup_rewards(callback: CallbackQuery, session: AsyncSession):
+    """Handle setup rewards click."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    await menu_manager.update_menu(
+        callback,
+        "🎁 **Configurar Recompensas**\n\n"
+        "Establece las recompensas que los usuarios pueden canjear con sus puntos. "
+        "Las recompensas motivan la participación.\n\n"
+        "*(Implementación futura: Interfaz para crear/editar recompensas)*",
+        get_setup_gamification_kb(),
+        session,
+        "setup_rewards_info"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "setup_levels")
+async def setup_levels(callback: CallbackQuery, session: AsyncSession):
+    """Handle setup levels click."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    await menu_manager.update_menu(
+        callback,
+        "📊 **Configurar Niveles**\n\n"
+        "Define los diferentes niveles de progresión para tus usuarios. "
+        "Los niveles otorgan una sensación de avance.\n\n"
+        "*(Implementación futura: Interfaz para crear/editar niveles)*",
+        get_setup_gamification_kb(),
+        session,
+        "setup_levels_info"
+    )
+    await callback.answer()
+
+# -- Tariff Handlers --
+# setup_tariffs_menu ya existe
+# setup_basic_tariff ya existe (que también crea tarifas "premium" por defecto)
+
+@router.callback_query(F.data == "setup_premium_tariff")
+async def setup_premium_tariff(callback: CallbackQuery, session: AsyncSession):
+    """Handle setup premium tariff click."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    # Si setup_basic_tariff ya crea tarifas premium, este botón puede ser redundante
+    # O podrías tener una lógica para crear una tarifa premium específica aquí.
+    # Por ahora, un mensaje informativo.
+    await menu_manager.update_menu(
+        callback,
+        "👑 **Crear Tarifa Premium Específica (Próximamente)**\n\n"
+        "Esta opción te permitirá crear una tarifa premium con configuraciones "
+        "avanzadas. Por ahora, puedes usar las tarifas básicas y premium por defecto.",
         get_setup_tariffs_kb(),
         session,
         "setup_tariffs"
     )
     await callback.answer()
 
-@router.callback_query(F.data == "setup_basic_tariff")
-async def setup_basic_tariff(callback: CallbackQuery, session: AsyncSession):
-    """Set up basic tariff."""
+@router.callback_query(F.data == "setup_custom_tariffs")
+async def setup_custom_tariffs(callback: CallbackQuery, session: AsyncSession):
+    """Handle setup custom tariffs click."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
-    tenant_service = TenantService(session)
-    result = await tenant_service.create_default_tariffs(callback.from_user.id)
-    
-    if result["success"]:
-        tariffs_text = "\n".join([f"• {name}" for name in result["tariffs_created"]])
-        await menu_manager.update_menu(
-            callback,
-            f"✅ **Tarifas Creadas**\n\n"
-            f"Se han creado las siguientes tarifas:\n\n{tariffs_text}\n\n"
-            f"Puedes modificar precios y crear tarifas adicionales desde el panel de administración.",
-            get_setup_main_kb(),
-            session,
-            "setup_main"
-        )
-    else:
-        await callback.message.edit_text(
-            f"❌ **Error de Configuración**\n\n{result['error']}",
-            reply_markup=get_setup_tariffs_kb()
-        )
-    
-    await callback.answer()
-
-@router.callback_query(F.data == "setup_complete")
-async def complete_setup(callback: CallbackQuery, session: AsyncSession):
-    """Complete the setup process."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    tenant_service = TenantService(session)
-    summary = await tenant_service.get_tenant_summary(callback.from_user.id)
-    
-    if "error" in summary:
-        await callback.message.edit_text(
-            f"❌ **Error**\n\n{summary['error']}",
-            reply_markup=get_setup_main_kb()
-        )
-        return
-    
-    status = summary["configuration_status"]
-    
-    status_text = "✅ **Configuración Completada**\n\n"
-    status_text += "**Estado de tu bot**:\n"
-    status_text += f"📢 Canales: {'✅' if status['channels_configured'] else '❌'}\n"
-    status_text += f"💳 Tarifas: {'✅' if status['tariffs_configured'] else '❌'}\n"
-    status_text += f"🎮 Gamificación: {'✅' if status['gamification_configured'] else '❌'}\n\n"
-    
-    if status["basic_setup_complete"]:
-        status_text += "🎉 **¡Tu bot está listo para usar!**\n\n"
-        status_text += "Puedes empezar a invitar usuarios y gestionar tu comunidad."
-    else:
-        status_text += "⚠️ **Configuración incompleta**\n\n"
-        status_text += "Algunas funciones pueden no estar disponibles hasta completar la configuración."
     
     await menu_manager.update_menu(
         callback,
-        status_text,
-        get_setup_complete_kb(),
+        "🎯 **Configuración de Tarifas Personalizadas (Próximamente)**\n\n"
+        "Esta sección te permitirá crear tarifas de suscripción con duración, "
+        "precio y beneficios personalizados.\n\n"
+        "*(Implementación futura: Interfaz para crear/editar tarifas)*",
+        get_setup_tariffs_kb(),
         session,
-        "setup_complete"
+        "setup_tariffs"
     )
     await callback.answer()
 
-@router.callback_query(F.data == "skip_setup")
-async def skip_setup(callback: CallbackQuery, session: AsyncSession):
-    """Skip setup and go to admin panel."""
+# -- Completion and Navigation Handlers --
+# complete_setup ya existe
+# skip_setup ya existe
+
+@router.callback_query(F.data == "setup_guide")
+async def show_setup_guide(callback: CallbackQuery, session: AsyncSession):
+    """Show setup guide for admin."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
-    from keyboards.admin_main_kb import get_admin_main_kb
+    await menu_manager.update_menu(
+        callback,
+        "📖 **Guía de Uso del Bot**\n\n"
+        "Aquí encontrarás información detallada sobre cómo usar y configurar tu bot. "
+        "Temas:\n"
+        "• Gestión de usuarios\n"
+        "• Creación de contenido\n"
+        "• Marketing y monetización\n\n"
+        "*(Implementación futura: Contenido de la guía)*",
+        get_setup_complete_kb(), # Puedes tener un teclado específico para la guía si es necesario
+        session,
+        "setup_guide_info"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "setup_advanced")
+async def setup_advanced(callback: CallbackQuery, session: AsyncSession):
+    """Handle advanced setup options."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
     
     await menu_manager.update_menu(
         callback,
-        "⏭️ **Configuración Omitida**\n\n"
-        "Has omitido la configuración inicial. Puedes configurar tu bot "
-        "en cualquier momento desde el panel de administración.\n\n"
-        "**Nota**: Algunas funciones pueden no estar disponibles hasta "
-        "completar la configuración básica.",
-        get_admin_main_kb(),
+        "🔧 **Configuración Avanzada (Próximamente)**\n\n"
+        "Esta sección contendrá opciones avanzadas para la personalización del bot, "
+        "integraciones y herramientas de depuración.\n\n"
+        "*(Implementación futura: Opciones avanzadas)*",
+        get_setup_complete_kb(),
+        session,
+        "setup_advanced_info"
+    )
+    await callback.answer()
+
+# Error handlers and cleanup
+# Modificación en cancel_setup_action para manejar 'cancel_channel_setup'
+@router.callback_query(F.data.startswith("cancel_"))
+async def cancel_setup_action(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Cancel current setup action and return to main setup menu."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+
+    await state.clear() # Limpiar el estado de FSM
+
+    # Usar menu_factory para el menú principal de setup para consistencia
+    text, keyboard = await menu_factory.create_menu("setup_main", callback.from_user.id, session, callback.bot)
+    
+    await menu_manager.update_menu(
+        callback,
+        "❌ **Acción Cancelada**\n\n"
+        "La configuración ha sido cancelada. Puedes intentar nuevamente cuando quieras.\n\n"
+        f"**Siguiente paso**: {text}", # Añade el texto del menú principal de setup
+        keyboard,
+        session,
+        "setup_main"
+    )
+    await callback.answer()
+
+# Handler para el botón "admin_main" en get_setup_complete_kb
+@router.callback_query(F.data == "admin_main")
+async def navigate_to_admin_main_from_setup(callback: CallbackQuery, session: AsyncSession):
+    """Navigate to the main admin panel after setup completion or skip."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    # Asume que 'admin_main' es un estado de menú reconocido por menu_factory
+    text, keyboard = await menu_factory.create_menu("admin_main", callback.from_user.id, session, callback.bot)
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
         session,
         "admin_main"
     )
     await callback.answer()
 
-# Error handlers and cleanup
-@router.callback_query(F.data.startswith("cancel_"))
-async def cancel_setup_action(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    """Cancel current setup action."""
-    await state.clear()
-    await menu_manager.update_menu(
-        callback,
-        "❌ **Acción Cancelada**\n\n"
-        "La configuración ha sido cancelada. Puedes intentar nuevamente cuando quieras.",
-        get_setup_main_kb(),
-        session,
-        "setup_main"
-    )
-    await callback.answer()
