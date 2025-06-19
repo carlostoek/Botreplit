@@ -9,7 +9,14 @@ from utils.user_roles import get_user_role
 from keyboards.admin_main_kb import get_admin_main_kb
 from keyboards.vip_main_kb import get_vip_main_kb
 from keyboards.subscription_kb import get_subscription_kb
-from keyboards.setup_kb import get_setup_main_kb, get_setup_channels_kb, get_setup_complete_kb
+from keyboards.setup_kb import (
+    get_setup_main_kb, 
+    get_setup_channels_kb, 
+    get_setup_complete_kb,
+    get_setup_gamification_kb, # Nueva importación
+    get_setup_tariffs_kb,      # Nueva importación
+    get_setup_confirmation_kb, # Nueva importación
+)
 from database.models import User
 import logging
 
@@ -24,6 +31,7 @@ from utils.menu_creators import (
     create_auction_menu,
     create_ranking_menu
 )
+from utils.text_utils import sanitize_text # Asegúrate de que esta importación exista y sea correcta
 
 logger = logging.getLogger(__name__)
 
@@ -103,16 +111,24 @@ class MenuFactory:
         """Create setup menus for initial bot configuration."""
         if menu_state == "setup_main":
             return (
-                "🚀 **Configuración Inicial**\n\n"
-                "¡Bienvenido! Vamos a configurar tu bot paso a paso.\n"
-                "Este proceso te ayudará a establecer los canales y configuraciones básicas.",
+                "🚀 **Bienvenido a la Configuración Inicial**\n\n"
+                "¡Hola! Vamos a configurar tu bot paso a paso para que esté listo "
+                "para tus usuarios. Este proceso es rápido y fácil.\n\n"
+                "**¿Qué vamos a configurar?**\n"
+                "• 📢 Canales (VIP y/o Gratuito)\n"
+                "• 💳 Tarifas de suscripción\n"
+                "• 🎮 Sistema de gamificación\n\n"
+                "¡Empecemos!",
                 get_setup_main_kb()
             )
         elif menu_state == "setup_channels":
             return (
-                "📢 **Configurar Canales**\n\n"
-                "Configura tus canales VIP y gratuito. Puedes hacerlo ahora o más tarde "
-                "desde el panel de administración.",
+                "📢 **Configuración de Canales**\n\n"
+                "Los canales son el corazón de tu bot. Puedes configurar:\n\n"
+                "🔐 **Canal VIP**: Para suscriptores premium\n"
+                "🆓 **Canal Gratuito**: Para usuarios sin suscripción\n\n"
+                "**Recomendación**: Configura al menos un canal para empezar. "
+                "Puedes agregar más canales después desde el panel de administración.",
                 get_setup_channels_kb()
             )
         elif menu_state == "setup_complete":
@@ -122,9 +138,96 @@ class MenuFactory:
                 "administración en cualquier momento.",
                 get_setup_complete_kb()
             )
-        else:
-            # Si el estado de setup es desconocido, podemos regresar al setup_main
-            return await self._create_setup_menu("setup_main", user_id, session) 
+        # --- NUEVOS ESTADOS DE SETUP AÑADIDOS ---
+        elif menu_state == "setup_vip_channel_prompt":
+            return (
+                "🔐 **Configurar Canal VIP**\n\n"
+                "Para configurar tu canal VIP, reenvía cualquier mensaje de tu canal aquí. "
+                "El bot detectará automáticamente el ID del canal.\n\n"
+                "**Importante**: Asegúrate de que el bot sea administrador del canal "
+                "con permisos para invitar usuarios.",
+                get_setup_confirmation_kb("cancel_channel_setup")
+            )
+        elif menu_state == "setup_free_channel_prompt":
+            return (
+                "🆓 **Configurar Canal Gratuito**\n\n"
+                "Para configurar tu canal gratuito, reenvía cualquier mensaje de tu canal aquí. "
+                "El bot detectará automáticamente el ID del canal.\n\n"
+                "**Importante**: Asegúrate de que el bot sea administrador del canal "
+                "con permisos para aprobar solicitudes de unión.",
+                get_setup_confirmation_kb("cancel_channel_setup")
+            )
+        elif menu_state == "setup_manual_channel_id_prompt":
+            return (
+                "📝 **Ingresa el ID del Canal Manualmente**\n\n"
+                "Por favor, ingresa el ID numérico de tu canal. Normalmente empieza con `-100`.",
+                get_setup_confirmation_kb("cancel_channel_setup")
+            )
+        elif menu_state == "setup_gamification":
+            return (
+                "🎮 **Configuración de Gamificación**\n\n"
+                "El sistema de gamificación mantiene a tus usuarios comprometidos con:\n\n"
+                "🎯 **Misiones**: Tareas que los usuarios pueden completar\n"
+                "🏅 **Insignias**: Reconocimientos por logros\n"
+                "🎁 **Recompensas**: Premios por acumular puntos\n"
+                "📊 **Niveles**: Sistema de progresión\n\n"
+                "**Recomendación**: Usa la configuración por defecto para empezar rápido.",
+                get_setup_gamification_kb()
+            )
+        elif menu_state == "setup_tariffs":
+            return (
+                "💳 **Configuración de Tarifas VIP**\n\n"
+                "Las tarifas determinan los precios y duración de las suscripciones VIP.\n\n"
+                "**Opciones disponibles**:\n"
+                "💎 **Básica**: Tarifa estándar de 30 días\n"
+                "👑 **Premium**: Tarifa de 90 días con descuento\n"
+                "🎯 **Personalizada**: Crea tus propias tarifas\n\n"
+                "**Recomendación**: Empieza con las tarifas básica y premium.",
+                get_setup_tariffs_kb()
+            )
+        # Estados informativos para "Próximamente"
+        elif menu_state in ["setup_missions_info", "setup_badges_info", "setup_rewards_info", "setup_levels_info"]:
+            feature_name = menu_state.replace('_info', '').replace('setup_', '').replace('_', ' ').capitalize()
+            return (
+                f"ℹ️ **Información sobre {feature_name}**\n\n"
+                "Esta es una sección informativa. La implementación para crear/editar "
+                "estos elementos estará disponible próximamente.",
+                get_setup_gamification_kb() # Volver al teclado de gamificación
+            )
+        elif menu_state in ["setup_premium_tariff_info", "setup_custom_tariffs_info"]:
+            feature_name = menu_state.replace('_info', '').replace('setup_', '').replace('_', ' ').capitalize()
+            return (
+                f"ℹ️ **Información sobre {feature_name}**\n\n"
+                "Esta es una sección informativa. La implementación para crear/editar "
+                "tarifas premium o personalizadas estará disponible próximamente.",
+                get_setup_tariffs_kb() # Volver al teclado de tarifas
+            )
+        elif menu_state == "setup_guide_info":
+            return (
+                "📖 **Guía de Uso del Bot**\n\n"
+                "Aquí encontrarás información detallada sobre cómo usar y configurar tu bot. "
+                "Temas:\n"
+                "• Gestión de usuarios\n"
+                "• Creación de contenido\n"
+                "• Marketing y monetización\n\n"
+                "*(Contenido de la guía próximamente)*",
+                get_setup_complete_kb() # O un teclado específico para la guía si lo defines
+            )
+        elif menu_state == "setup_advanced_info":
+            return (
+                "🔧 **Configuración Avanzada (Próximamente)**\n\n"
+                "Esta sección contendrá opciones avanzadas para la personalización del bot, "
+                "integraciones y herramientas de depuración.\n\n"
+                "*(Opciones avanzadas próximamente)*",
+                get_setup_complete_kb()
+            )
+        else: # Si no se encuentra un estado de setup, un fallback más genérico para setup
+            logger.warning(f"Unknown setup menu state: {menu_state}. Falling back to main setup menu.")
+            return (
+                "⚠️ **Error de Configuración**\n\n"
+                "No se pudo cargar el menú de configuración solicitado. Volviendo al inicio.",
+                get_setup_main_kb()
+            )
     
     async def _create_specific_menu(
         self, 
@@ -210,3 +313,4 @@ class MenuFactory:
 # Global factory instance
 menu_factory = MenuFactory()
 
+                
