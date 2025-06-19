@@ -53,6 +53,8 @@ async def start_setup(message: Message, session: AsyncSession):
         return
     
     tenant_service = TenantService(session)
+    # Aquí puedes optar por inicializar el tenant o solo verificar el estado
+    # Lo dejo como estaba para mantener la compatibilidad con tu lógica de tenant_service
     init_result = await tenant_service.initialize_tenant(message.from_user.id)
     
     if not init_result["success"]:
@@ -63,28 +65,16 @@ async def start_setup(message: Message, session: AsyncSession):
         )
         return
     
-    status = init_result["status"]
-    
-    if status["basic_setup_complete"]:
-        text, keyboard = await menu_factory.create_menu("setup_complete", message.from_user.id, session, message.bot)
-        await menu_manager.show_menu(
-            message,
-            text,
-            keyboard,
-            session,
-            "setup_complete",
-            delete_origin_message=True # Añadido: borrar el comando /setup
-        )
-    else:
-        text, keyboard = await menu_factory.create_menu("setup_main", message.from_user.id, session, message.bot)
-        await menu_manager.show_menu(
-            message,
-            text,
-            keyboard,
-            session,
-            "setup_main",
-            delete_origin_message=True # Añadido: borrar el comando /setup
-        )
+    # CAMBIO: El comando /setup siempre lleva al menú principal de configuración, no al de elección
+    text, keyboard = await menu_factory.create_menu("setup_main", message.from_user.id, session, message.bot)
+    await menu_manager.show_menu(
+        message,
+        text,
+        keyboard,
+        session,
+        "setup_main", # <<<--- SIEMPRE VA A setup_main
+        delete_origin_message=True # Añadido: borrar el comando /setup
+    )
 
 # --- Channel Handlers ---
 @router.callback_query(F.data == "setup_channels")
@@ -109,7 +99,6 @@ async def setup_vip_channel(callback: CallbackQuery, state: FSMContext, session:
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
-    # Es mejor usar menu_manager.update_menu aquí para mantener el historial
     text, keyboard = await menu_factory.create_menu("setup_vip_channel_prompt", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -515,3 +504,8 @@ async def setup_custom_tariffs(callback: CallbackQuery, session: AsyncSession):
 # complete_setup ya existe
 # skip_setup ya existe
 
+@router.callback_query(F.data == "setup_guide")
+async def show_setup_guide(callback: CallbackQuery, session: AsyncSession):
+    """Show setup guide for admin."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso dene
