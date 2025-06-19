@@ -13,17 +13,16 @@ from keyboards.setup_kb import (
     get_setup_main_kb, 
     get_setup_channels_kb, 
     get_setup_complete_kb,
-    get_setup_gamification_kb, # Nueva importación
-    get_setup_tariffs_kb,      # Nueva importación
-    get_setup_confirmation_kb, # Nueva importación
+    get_setup_gamification_kb,
+    get_setup_tariffs_kb,
+    get_setup_confirmation_kb,
 )
 from database.models import User
 import logging
 
-# Importar InlineKeyboardBuilder aquí, ya que se usará en el nuevo método de la clase
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.utils.keyboard import InlineKeyboardBuilder # Importar InlineKeyboardBuilder
 
-# Mover todas las importaciones de creadores de menú específicos al inicio
+# Importar creadores de menú específicos (asegúrate de que estos archivos existen)
 from utils.menu_creators import (
     create_profile_menu,
     create_missions_menu,
@@ -31,7 +30,7 @@ from utils.menu_creators import (
     create_auction_menu,
     create_ranking_menu
 )
-from utils.text_utils import sanitize_text # Asegúrate de que esta importación exista y sea correcta
+from utils.text_utils import sanitize_text
 
 logger = logging.getLogger(__name__)
 
@@ -55,17 +54,13 @@ class MenuFactory:
             Tuple[str, InlineKeyboardMarkup]: (text, keyboard)
         """
         try:
-            # Siempre intenta obtener el rol usando la función robusta.
-            # get_user_role debería poder manejar si el 'bot' es None o si no necesita la API de Telegram.
-            # O asegúrate de que 'bot' SIEMPRE se pase cuando se llama a create_menu.
-            role = await get_user_role(bot, user_id, session=session) # Pasa 'bot' consistentemente
+            role = await get_user_role(bot, user_id, session=session)
             
             # Handle setup flow for new installations
             if menu_state.startswith("setup_"):
                 return await self._create_setup_menu(menu_state, user_id, session)
             
             # Handle role-based main menus
-            # Asegúrate de que los estados de menú principales sean consistentes en todo el bot
             if menu_state in ["main", "admin_main", "vip_main", "free_main"]:
                 return self._create_main_menu(role)
             
@@ -74,8 +69,6 @@ class MenuFactory:
             
         except Exception as e:
             logger.error(f"Error creating menu for state {menu_state}, user {user_id}: {e}")
-            # Fallback to a menu based on determined role, or a generic one
-            # Pasa el rol al fallback para que pueda intentar ser más inteligente
             return self._create_fallback_menu(role) 
     
     def _create_main_menu(self, role: str) -> Tuple[str, InlineKeyboardMarkup]:
@@ -138,7 +131,6 @@ class MenuFactory:
                 "administración en cualquier momento.",
                 get_setup_complete_kb()
             )
-        # --- NUEVOS ESTADOS DE SETUP AÑADIDOS ---
         elif menu_state == "setup_vip_channel_prompt":
             return (
                 "🔐 **Configurar Canal VIP**\n\n"
@@ -185,14 +177,13 @@ class MenuFactory:
                 "**Recomendación**: Empieza con las tarifas básica y premium.",
                 get_setup_tariffs_kb()
             )
-        # Estados informativos para "Próximamente"
         elif menu_state in ["setup_missions_info", "setup_badges_info", "setup_rewards_info", "setup_levels_info"]:
             feature_name = menu_state.replace('_info', '').replace('setup_', '').replace('_', ' ').capitalize()
             return (
                 f"ℹ️ **Información sobre {feature_name}**\n\n"
                 "Esta es una sección informativa. La implementación para crear/editar "
                 "estos elementos estará disponible próximamente.",
-                get_setup_gamification_kb() # Volver al teclado de gamificación
+                get_setup_gamification_kb()
             )
         elif menu_state in ["setup_premium_tariff_info", "setup_custom_tariffs_info"]:
             feature_name = menu_state.replace('_info', '').replace('setup_', '').replace('_', ' ').capitalize()
@@ -200,7 +191,7 @@ class MenuFactory:
                 f"ℹ️ **Información sobre {feature_name}**\n\n"
                 "Esta es una sección informativa. La implementación para crear/editar "
                 "tarifas premium o personalizadas estará disponible próximamente.",
-                get_setup_tariffs_kb() # Volver al teclado de tarifas
+                get_setup_tariffs_kb()
             )
         elif menu_state == "setup_guide_info":
             return (
@@ -211,7 +202,7 @@ class MenuFactory:
                 "• Creación de contenido\n"
                 "• Marketing y monetización\n\n"
                 "*(Contenido de la guía próximamente)*",
-                get_setup_complete_kb() # O un teclado específico para la guía si lo defines
+                get_setup_complete_kb()
             )
         elif menu_state == "setup_advanced_info":
             return (
@@ -221,7 +212,7 @@ class MenuFactory:
                 "*(Opciones avanzadas próximamente)*",
                 get_setup_complete_kb()
             )
-        else: # Si no se encuentra un estado de setup, un fallback más genérico para setup
+        else:
             logger.warning(f"Unknown setup menu state: {menu_state}. Falling back to main setup menu.")
             return (
                 "⚠️ **Error de Configuración**\n\n"
@@ -237,7 +228,6 @@ class MenuFactory:
         role: str
     ) -> Tuple[str, InlineKeyboardMarkup]:
         """Create specific menus based on state."""
-        # Las importaciones ya están al inicio del archivo
         
         if menu_state == "profile":
             return await create_profile_menu(user_id, session)
@@ -249,9 +239,30 @@ class MenuFactory:
             return await create_auction_menu(user_id, session)
         elif menu_state == "ranking":
             return await create_ranking_menu(user_id, session)
-        # Puedes añadir más estados específicos aquí
+        
+        # --- MENÚ DE ADMINISTRACIÓN DEL JUEGO KINKY (CON MÁS OPCIONES) ---
+        elif menu_state == "admin_kinky_game_menu":
+            builder = InlineKeyboardBuilder()
+            builder.button(text="✍️ Crear Pregunta", callback_data="kinky_game_create_question")
+            builder.button(text="📝 Gestionar Preguntas", callback_data="kinky_game_manage_questions")
+            builder.button(text="⚙️ Configuración del Juego", callback_data="kinky_game_settings")
+            builder.button(text="📊 Estadísticas del Juego", callback_data="kinky_game_stats")
+            builder.button(text="🏆 Top Jugadores", callback_data="kinky_game_top_players")
+            builder.button(text="🔙 Volver al Panel", callback_data="admin_main") 
+
+            builder.adjust(1) # Un botón por fila para estas opciones
+
+            return (
+                "🎲 **Administración del Juego Kinky**\n\n"
+                "Bienvenido al panel de control del Juego Kinky. Aquí puedes gestionar "
+                "todos los aspectos para que tus usuarios disfruten al máximo.\n\n"
+                "Elige una opción:",
+                builder.as_markup()
+            )
+        # --- FIN DEL MENÚ DE ADMINISTRACIÓN DEL JUEGO KINKY ---
+
+        # Añade aquí otros estados específicos si los necesitas
         else:
-            # Fallback a un menú principal basado en el rol si el estado específico no se encuentra
             logger.warning(f"Unknown specific menu state: {menu_state}. Falling back to main menu for role: {role}")
             return self._create_main_menu(role)
     
@@ -263,7 +274,6 @@ class MenuFactory:
         text = "⚠️ **Error de Navegación**\n\n" \
                "Hubo un problema al cargar el menú. Por favor, intenta nuevamente."
         
-        # Intenta un fallback más inteligente basado en el rol
         if role == "admin":
             return (text, get_admin_main_kb())
         elif role == "vip":
@@ -274,7 +284,7 @@ class MenuFactory:
     def create_setup_choice_menu(self) -> Tuple[str, InlineKeyboardMarkup]:
         """
         Crea el texto y el teclado para la elección inicial de configuración del admin.
-        Este método se mueve aquí desde handlers/start.py.
+        Este método está diseñado para ser llamado por handlers/start.py
         """
         
         builder = InlineKeyboardBuilder()
@@ -313,4 +323,4 @@ class MenuFactory:
 # Global factory instance
 menu_factory = MenuFactory()
 
-                
+                            
