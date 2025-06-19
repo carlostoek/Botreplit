@@ -30,7 +30,7 @@ from utils.menu_creators import (
     create_auction_menu,
     create_ranking_menu
 )
-from utils.text_utils import sanitize_text
+from utils.text_utils import sanitize_text # Asegúrate de que esta importación exista y sea correcta
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class MenuFactory:
             role = await get_user_role(bot, user_id, session=session)
             
             # Handle setup flow for new installations
-            if menu_state.startswith("setup_"):
+            if menu_state.startswith("setup_") or menu_state == "admin_setup_choice": # Añadido admin_setup_choice aquí
                 return await self._create_setup_menu(menu_state, user_id, session)
             
             # Handle role-based main menus
@@ -131,6 +131,10 @@ class MenuFactory:
                 "administración en cualquier momento.",
                 get_setup_complete_kb()
             )
+        # --- NUEVO BLOQUE: admin_setup_choice ---
+        elif menu_state == "admin_setup_choice":
+            return self.create_setup_choice_menu() # Reutiliza el método para el menú de elección
+        # --- FIN NUEVO BLOQUE ---
         elif menu_state == "setup_vip_channel_prompt":
             return (
                 "🔐 **Configurar Canal VIP**\n\n"
@@ -240,11 +244,6 @@ class MenuFactory:
         elif menu_state == "ranking":
             return await create_ranking_menu(user_id, session)
         
-        # ELIMINADO: Ya no necesitamos un menú específico para "admin_kinky_game_menu" aquí.
-        # Ahora lo gestiona directamente el handler en admin_menu.py.txt
-        # que reutiliza el teclado de get_admin_manage_content_keyboard().
-
-        # Añade aquí otros estados específicos si los necesitas
         elif menu_state == "admin_gamification_main": # Asegúrate de que este estado es reconocido si alguna otra parte lo invoca
             # Aunque el handler directo lo gestiona, si por alguna razón menu_factory
             # necesita crear este menú, podemos redirigirlo al panel admin principal
@@ -309,4 +308,3 @@ class MenuFactory:
 
 # Global factory instance
 menu_factory = MenuFactory()
-
