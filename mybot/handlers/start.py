@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
 from utils.text_utils import sanitize_text
 from utils.menu_manager import menu_manager
-from utils.menu_factory import menu_factory
+from utils.menu_factory import menu_factory # Asegúrate de que esta sea la instancia global
 from utils.user_roles import clear_role_cache, is_admin
 from services.tenant_service import TenantService
 import logging
@@ -70,46 +70,53 @@ async def cmd_start(message: Message, session: AsyncSession):
         
         # If admin hasn't completed basic setup, guide them to setup
         if not tenant_status["basic_setup_complete"]:
+            # MODIFICACIÓN: Usar menu_factory para obtener el teclado de setup choice
+            # Y pasar delete_origin_message=True para eliminar el comando /start del admin
+            text_setup, keyboard_setup = menu_factory.create_setup_choice_menu() # Nuevo método en MenuFactory
             await menu_manager.show_menu(
                 message,
-                "👋 **¡Hola, Administrador!**\n\n"
-                "Parece que es la primera vez que usas este bot. "
-                "Te guiaré a través de una configuración rápida para que "
-                "esté listo para tus usuarios.\n\n"
-                "**¿Quieres configurar el bot ahora?**\n"
-                "• ✅ Configuración guiada (recomendado)\n"
-                "• ⏭️ Ir directo al panel de administración\n\n"
-                "La configuración solo toma unos minutos y puedes "
-                "cambiar todo después.",
-                menu_factory._create_setup_choice_kb(),
+                text_setup,
+                keyboard_setup,
                 session,
-                "admin_setup_choice"
+                "admin_setup_choice",
+                delete_origin_message=True # ¡Importante para eliminar el /start!
             )
-            return
+            return # Terminar aquí para el flujo de setup
     
     # Create appropriate menu based on user role and status
     try:
+        # Obtener el texto y teclado del menú principal
         text, keyboard = await menu_factory.create_menu("main", user_id, session, message.bot)
         
         # Customize welcome message for new vs returning users
-        if is_new_user:
-            welcome_prefix = "🌟 **¡Bienvenido!**\n\n"
-            if "admin" in text.lower():
-                welcome_prefix = "👑 **¡Bienvenido, Administrador!**\n\n"
-            elif "vip" in text.lower():
-                welcome_prefix = "✨ **¡Bienvenido, Miembro VIP!**\n\n"
-            
-            text = welcome_prefix + text
-        else:
-            # Returning user - more concise welcome
-            if "admin" in text.lower():
-                text = "👑 **Panel de Administración**\n\n" + text.split('\n\n', 1)[-1]
-            elif "vip" in text.lower():
-                text = "✨ **Bienvenido de vuelta**\n\n" + text.split('\n\n', 1)[-1]
+        # Solo personaliza si es el menú principal, no si es un sub-menú ya generado
+        if "main" in menu_factory._get_current_menu_state_from_text(text): # Helper para saber si es un menú "main"
+            if is_new_user:
+                welcome_prefix = "🌟 **¡Bienvenido!**\n\n"
+                # Ajustar prefijo si el menú principal ya implica un rol (ej. Admin, VIP)
+                if "panel de administración" in text.lower():
+                    welcome_prefix = "👑 **¡Bienvenido, Administrador!**\n\n"
+                elif "suscripción vip" in text.lower() or "experiencia premium" in text.lower():
+                    welcome_prefix = "✨ **¡Bienvenido, Miembro VIP!**\n\n"
+                
+                text = welcome_prefix + text
             else:
-                text = "🌟 **¡Hola de nuevo!**\n\n" + text.split('\n\n', 1)[-1]
+                # Returning user - more concise welcome
+                if "panel de administración" in text.lower():
+                    text = "👑 **Panel de Administración**\n\n" + text.split('\n\n', 1)[-1]
+                elif "suscripción vip" in text.lower() or "experiencia premium" in text.lower():
+                    text = "✨ **Bienvenido de vuelta**\n\n" + text.split('\n\n', 1)[-1]
+                else:
+                    text = "🌟 **¡Hola de nuevo!**\n\n" + text.split('\n\n', 1)[-1]
         
-        await menu_manager.show_menu(message, text, keyboard, session, "main")
+        await menu_manager.show_menu(
+            message, 
+            text, 
+            keyboard, 
+            session, 
+            "main",
+            delete_origin_message=True # ¡Importante para eliminar el /start!
+        )
         
     except Exception as e:
         logger.error(f"Error in start command for user {user_id}: {e}")
@@ -121,8 +128,12 @@ async def cmd_start(message: Message, session: AsyncSession):
             auto_delete_seconds=5
         )
 
+# MOVER esta función DENTRO de la clase MenuFactory en menu_factory.py
+# Y ELIMINAR LA LÍNEA: menu_factory._create_setup_choice_kb = _create_setup_choice_kb
+# Aquí es solo para referencia de lo que se mueve.
+"""
 def _create_setup_choice_kb():
-    """Create keyboard for admin setup choice."""
+    
     from aiogram.utils.keyboard import InlineKeyboardBuilder
     
     builder = InlineKeyboardBuilder()
@@ -131,6 +142,4 @@ def _create_setup_choice_kb():
     builder.button(text="📖 Ver Guía", callback_data="show_setup_guide")
     builder.adjust(1)
     return builder.as_markup()
-
-# Add the method to MenuFactory
-menu_factory._create_setup_choice_kb = _create_setup_choice_kb
+"""
