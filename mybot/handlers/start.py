@@ -76,7 +76,7 @@ async def cmd_start(message: Message, session: AsyncSession):
                 text_setup,
                 keyboard_setup,
                 session,
-                "admin_setup_choice", # <-- Este estado ahora es reconocido por menu_factory
+                "admin_setup_choice", # <-- Este estado es reconocido por menu_factory
                 delete_origin_message=True # ¡Importante para eliminar el /start!
             )
             return # Terminar aquí para el flujo de setup
