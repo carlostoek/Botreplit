@@ -240,28 +240,15 @@ class MenuFactory:
         elif menu_state == "ranking":
             return await create_ranking_menu(user_id, session)
         
-        # --- MENÚ DE ADMINISTRACIÓN DEL JUEGO KINKY (CON MÁS OPCIONES) ---
-        elif menu_state == "admin_kinky_game_menu":
-            builder = InlineKeyboardBuilder()
-            builder.button(text="✍️ Crear Pregunta", callback_data="kinky_game_create_question")
-            builder.button(text="📝 Gestionar Preguntas", callback_data="kinky_game_manage_questions")
-            builder.button(text="⚙️ Configuración del Juego", callback_data="kinky_game_settings")
-            builder.button(text="📊 Estadísticas del Juego", callback_data="kinky_game_stats")
-            builder.button(text="🏆 Top Jugadores", callback_data="kinky_game_top_players")
-            builder.button(text="🔙 Volver al Panel", callback_data="admin_main") 
-
-            builder.adjust(1) # Un botón por fila para estas opciones
-
-            return (
-                "🎲 **Administración del Juego Kinky**\n\n"
-                "Bienvenido al panel de control del Juego Kinky. Aquí puedes gestionar "
-                "todos los aspectos para que tus usuarios disfruten al máximo.\n\n"
-                "Elige una opción:",
-                builder.as_markup()
-            )
-        # --- FIN DEL MENÚ DE ADMINISTRACIÓN DEL JUEGO KINKY ---
+        # ELIMINADO: Ya no necesitamos un menú específico para "admin_kinky_game_menu" aquí.
+        # Ahora lo gestiona directamente el handler en admin_menu.py.txt
+        # que reutiliza el teclado de get_admin_manage_content_keyboard().
 
         # Añade aquí otros estados específicos si los necesitas
+        elif menu_state == "admin_gamification_main": # Asegúrate de que este estado es reconocido si alguna otra parte lo invoca
+            # Aunque el handler directo lo gestiona, si por alguna razón menu_factory
+            # necesita crear este menú, podemos redirigirlo al panel admin principal
+            return self._create_main_menu("admin") # O puedes definir un texto y teclado específico aquí
         else:
             logger.warning(f"Unknown specific menu state: {menu_state}. Falling back to main menu for role: {role}")
             return self._create_main_menu(role)
@@ -323,4 +310,3 @@ class MenuFactory:
 # Global factory instance
 menu_factory = MenuFactory()
 
-                            
