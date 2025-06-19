@@ -1,357 +1,285 @@
 """
-Enhanced admin menu with improved navigation and multi-tenant support.
+Advanced menu management system for seamless user experience.
+Handles message lifecycle, navigation state, and prevents chat clutter.
 """
-from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery
-from aiogram.filters import CommandStart, Command
-from sqlalchemy.ext.asyncio import AsyncSession
-
-# from keyboards.admin_main_kb import get_admin_main_kb # Ya no es necesario importar directamente si menu_factory lo maneja
-from utils.user_roles import is_admin
-from utils.menu_manager import menu_manager
-from utils.menu_factory import menu_factory # Asegúrate de que esta instancia global sea la que se usa
-from services.tenant_service import TenantService
-from services import get_admin_statistics
-from database.models import Tariff, Token
-from uuid import uuid4
-from sqlalchemy import select
-from utils.messages import BOT_MESSAGES
+import asyncio
 import logging
+from typing import Dict, Optional, Tuple, Any
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup
+from aiogram.exceptions import TelegramBadRequest, TelegramAPIError
+from sqlalchemy.ext.asyncio import AsyncSession
+from database.models import User, set_user_menu_state
 
 logger = logging.getLogger(__name__)
-router = Router()
 
-# Include all sub-routers
-from .vip_menu import router as vip_router
-from .free_menu import router as free_router
-from .config_menu import router as config_router
-from .channel_admin import router as channel_admin_router
-from .subscription_plans import router as subscription_plans_router
-from .game_admin import router as game_admin_router
-from .event_admin import router as event_admin_router
-
-router.include_router(vip_router)
-router.include_router(free_router)
-router.include_router(config_router)
-router.include_router(channel_admin_router)
-router.include_router(subscription_plans_router)
-router.include_router(game_admin_router)
-router.include_router(event_admin_router)
-
-@router.message(CommandStart())
-async def admin_start(message: Message, session: AsyncSession):
-    """Enhanced admin start with setup detection."""
-    if not is_admin(message.from_user.id):
-        # Si no es admin, no hacemos nada o redirigimos al menú de usuario normal.
-        # Asumo que tienes un handler CommandStart para usuarios no admin en start.py
-        # No eliminar el mensaje si el usuario no es admin y este handler no es el final.
-        return 
+class MenuManager:
+    """
+    Centralized menu management system that ensures clean chat experience.
+    - Only one active menu message per user
+    - Automatic cleanup of temporary messages
+    - Smooth navigation without message proliferation
+    """
     
-    # Check if this admin needs setup
-    tenant_service = TenantService(session)
-    tenant_status = await tenant_service.get_tenant_status(message.from_user.id)
+    def __init__(self):
+        # Store the current menu message for each user
+        self._active_menus: Dict[int, Tuple[int, int]] = {}  # user_id -> (chat_id, message_id)
+        # Store temporary messages that should be auto-deleted
+        self._temp_messages: Dict[int, Tuple[int, int, float]] = {}  # user_id -> (chat_id, message_id, expire_time)
+        # Navigation history for back button functionality
+        self._nav_history: Dict[int, list] = {}  # user_id -> [menu_states]
     
-    if not tenant_status["basic_setup_complete"]:
-        # Redirect to setup
-        from handlers.setup import start_setup
-        await start_setup(message, session)
-        # Importante: Pasar delete_origin_message=True a start_setup si también maneja menús
-        # o asegúrate de que start_setup borre el mensaje de comando si inicia un proceso interactivo.
-        return
-    
-    # Show admin panel
-    text, keyboard = await menu_factory.create_menu("admin_main", message.from_user.id, session, message.bot)
-    # MODIFICACIÓN CLAVE: delete_origin_message=True
-    await menu_manager.show_menu(message, text, keyboard, session, "admin_main", delete_origin_message=True)
-
-@router.message(Command("admin_menu"))
-async def admin_menu(message: Message, session: AsyncSession):
-    """Enhanced admin menu command."""
-    if not is_admin(message.from_user.id):
-        await menu_manager.send_temporary_message(
-            message,
-            "❌ **Acceso Denegado**\n\nNo tienes permisos de administrador.",
-            auto_delete_seconds=5
-        )
-        # No eliminar el mensaje de comando si se muestra un error temporal.
-        return
-    
-    try:
-        text, keyboard = await menu_factory.create_menu("admin_main", message.from_user.id, session, message.bot)
-        # MODIFICACIÓN CLAVE: delete_origin_message=True
-        await menu_manager.show_menu(message, text, keyboard, session, "admin_main", delete_origin_message=True)
-    except Exception as e:
-        logger.error(f"Error showing admin menu for user {message.from_user.id}: {e}")
-        await menu_manager.send_temporary_message(
-            message,
-            "❌ **Error Temporal**\n\nNo se pudo cargar el panel de administración.",
-            auto_delete_seconds=5
-        )
-
-@router.callback_query(F.data == "admin_stats")
-async def admin_stats(callback: CallbackQuery, session: AsyncSession):
-    """Enhanced admin statistics with better formatting."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    try:
-        stats = await get_admin_statistics(session)
+    async def show_menu(
+        self, 
+        message: Message, 
+        text: str, 
+        keyboard: InlineKeyboardMarkup,
+        session: AsyncSession,
+        menu_state: str,
+        parse_mode: str = "Markdown",
+        # NUEVO PARÁMETRO: Indicar si se debe eliminar el mensaje original (ej. el comando /start)
+        delete_origin_message: bool = False 
+    ) -> Message:
+        """
+        Display a menu, replacing any existing menu for this user.
+        This ensures only one menu message exists per user.
+        If delete_origin_message is True, attempts to delete the message
+        that triggered this menu display (e.g., a command).
+        """
+        user_id = message.from_user.id
+        bot = message.bot
         
-        # Get additional tenant-specific stats
-        tenant_service = TenantService(session)
-        tenant_summary = await tenant_service.get_tenant_summary(callback.from_user.id)
+        # Clean up any temporary messages first
+        await self._cleanup_temp_messages(bot, user_id)
         
-        text_lines = [
-            "📊 **Estadísticas del Sistema**",
-            "",
-            "👥 **Usuarios**",
-            f"• Total: {stats['users_total']}",
-            f"• Suscripciones totales: {stats['subscriptions_total']}",
-            f"• Activas: {stats['subscriptions_active']}",
-            f"• Expiradas: {stats['subscriptions_expired']}",
-            "",
-            "💰 **Ingresos**",
-            f"• Total recaudado: ${stats.get('revenue_total', 0)}",
-            "",
-            "⚙️ **Configuración**"
-        ]
+        # Try to update existing menu if it exists
+        existing = self._active_menus.get(user_id)
+        if existing:
+            chat_id, msg_id = existing
+            try:
+                # Intenta editar el mensaje del menú *anterior*
+                await bot.edit_message_text(
+                    text=text,
+                    chat_id=chat_id,
+                    message_id=msg_id,
+                    reply_markup=keyboard,
+                    parse_mode=parse_mode
+                )
+                await set_user_menu_state(session, user_id, menu_state)
+                
+                # Si el origen es un comando y se debe eliminar, lo hacemos aquí.
+                if delete_origin_message and message.message_id:
+                    try:
+                        await bot.delete_message(message.chat.id, message.message_id)
+                    except TelegramAPIError as e:
+                        logger.warning(f"Could not delete origin message {message.message_id} for user {user_id}: {e}")
+                return None  # Message was updated, no new message sent
+            except TelegramBadRequest as e:
+                if "message is not modified" in str(e).lower():
+                    # Si el mensaje no ha cambiado, no hay necesidad de hacer nada.
+                    if delete_origin_message and message.message_id:
+                        try:
+                            await bot.delete_message(message.chat.id, message.message_id)
+                        except TelegramAPIError as e:
+                            logger.warning(f"Could not delete origin message {message.message_id} for user {user_id}: {e}")
+                    return None
+                # El mensaje no se pudo editar (ej. fue borrado por el usuario), así que necesitamos enviar uno nuevo.
+                logger.debug(f"Could not update menu for user {user_id} (will create new): {e}")
+            except Exception as e:
+                logger.error(f"Error updating menu for user {user_id}, falling back to create new: {e}")
         
-        if "error" not in tenant_summary:
-            channels = tenant_summary.get("channels", {})
-            text_lines.extend([
-                f"• Canal VIP: {'✅' if channels.get('vip_channel_id') else '❌'}",
-                f"• Canal Gratuito: {'✅' if channels.get('free_channel_id') else '❌'}",
-                f"• Tarifas configuradas: {tenant_summary.get('tariff_count', 0)}"
-            ])
-        
-        from keyboards.common import get_back_kb
-        await menu_manager.update_menu(
-            callback,
-            "\n".join(text_lines),
-            get_back_kb("admin_main_menu"),
-            session,
-            "admin_stats",
-        )
-    except Exception as e:
-        logger.error(f"Error showing admin stats: {e}")
-        await callback.answer("Error al cargar estadísticas", show_alert=True)
-    
-    await callback.answer()
-
-@router.callback_query(F.data == "admin_back")
-async def admin_back(callback: CallbackQuery, session: AsyncSession):
-    """Enhanced back navigation for admin."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    try:
-        # Use menu manager's back functionality
-        # Asegúrate de que go_back use la instancia global de menu_factory
-        success = await menu_manager.go_back(callback, session, "admin_main")
-        if not success:
-            # Fallback to main admin menu if history fails
-            text, keyboard = await menu_factory.create_menu("admin_main", callback.from_user.id, session, callback.bot)
-            await menu_manager.update_menu(callback, text, keyboard, session, "admin_main")
-    except Exception as e:
-        logger.error(f"Error in admin back navigation: {e}")
-        await callback.answer("Error en la navegación", show_alert=True)
-    
-    await callback.answer()
-
-@router.callback_query(F.data == "admin_main_menu")
-async def back_to_admin_main(callback: CallbackQuery, session: AsyncSession):
-    """Return to main admin menu."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    try:
-        text, keyboard = await menu_factory.create_menu("admin_main", callback.from_user.id, session, callback.bot)
-        await menu_manager.update_menu(callback, text, keyboard, session, "admin_main")
-    except Exception as e:
-        logger.error(f"Error returning to admin main: {e}")
-        await callback.answer("Error al cargar el menú principal", show_alert=True)
-    
-    await callback.answer()
-
-@router.callback_query(F.data == "admin_manage_content")
-async def admin_manage_content(callback: CallbackQuery, session: AsyncSession):
-    """Enhanced content management menu."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    try:
-        from utils.keyboard_utils import get_admin_manage_content_keyboard
-        
-        await menu_manager.update_menu(
-            callback,
-            "🎮 **Gestión de Contenido y Gamificación**\n\n"
-            "Administra todos los aspectos del sistema de juego y engagement:\n\n"
-            "• 👥 Gestión de usuarios y puntos\n"
-            "• 🎯 Misiones y desafíos\n"
-            "• 🏅 Sistema de insignias\n"
-            "• 🎁 Catálogo de recompensas\n"
-            "• 🏛️ Subastas en tiempo real\n"
-            "• 🎉 Eventos especiales",
-            get_admin_manage_content_keyboard(),
-            session,
-            "admin_manage_content",
-        )
-    except Exception as e:
-        logger.error(f"Error showing content management: {e}")
-        await callback.answer("Error al cargar la gestión de contenido", show_alert=True)
-    
-    await callback.answer()
-
-@router.callback_query(F.data == "admin_bot_config")
-async def admin_bot_config(callback: CallbackQuery, session: AsyncSession):
-    """Enhanced bot configuration menu."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    try:
-        from keyboards.common import get_back_kb
-        
-        # Get current configuration status
-        tenant_service = TenantService(session)
-        tenant_summary = await tenant_service.get_tenant_summary(callback.from_user.id)
-        
-        config_text = "⚙️ **Configuración del Bot**\n\n"
-        
-        if "error" not in tenant_summary:
-            status = tenant_summary["configuration_status"]
-            config_text += "**Estado actual:**\n"
-            config_text += f"📢 Canales: {'✅ Configurados' if status['channels_configured'] else '❌ Pendiente'}\n"
-            config_text += f"💳 Tarifas: {'✅ Configuradas' if status['tariffs_configured'] else '❌ Pendiente'}\n"
-            config_text += f"🎮 Gamificación: {'✅ Configurada' if status['gamification_configured'] else '❌ Pendiente'}\n\n"
-            
-            if not status["basic_setup_complete"]:
-                config_text += "⚠️ **Configuración incompleta**\nAlgunas funciones pueden no estar disponibles."
-            else:
-                config_text += "✅ **Bot completamente configurado**\nTodas las funciones están disponibles."
-        else:
-            config_text += "❌ Error al cargar el estado de configuración."
-        
-        await menu_manager.update_menu(
-            callback,
-            config_text,
-            get_back_kb("admin_main_menu"),
-            session,
-            "admin_bot_config",
-        )
-    except Exception as e:
-        logger.error(f"Error showing bot config: {e}")
-        await callback.answer("Error al cargar la configuración", show_alert=True)
-    
-    await callback.answer()
-
-# Enhanced token generation with better UX
-@router.message(Command("admin_generate_token"))
-async def admin_generate_token_cmd(message: Message, session: AsyncSession, bot: Bot):
-    """Enhanced token generation command."""
-    if not is_admin(message.from_user.id):
-        await menu_manager.send_temporary_message(
-            message,
-            "❌ **Acceso Denegado**\n\nNo tienes permisos de administrador.",
-            auto_delete_seconds=5
-        )
-        # No eliminar el mensaje de comando si se muestra un error temporal.
-        return
-    
-    try:
-        result = await session.execute(select(Tariff))
-        tariffs = result.scalars().all()
-        
-        if not tariffs:
-            await menu_manager.send_temporary_message(
-                message,
-                "❌ **Sin Tarifas Configuradas**\n\n"
-                "Primero debes configurar las tarifas VIP desde el panel de administración.",
-                auto_delete_seconds=8
+        # Create new menu message (either because no existing, or update failed)
+        try:
+            sent_message = await message.answer(
+                text=text,
+                reply_markup=keyboard,
+                parse_mode=parse_mode
             )
-            # No eliminar el mensaje de comando si se muestra un error temporal.
-            return
+            self._active_menus[user_id] = (sent_message.chat.id, sent_message.message_id)
+            await set_user_menu_state(session, user_id, menu_state)
+            
+            # Update navigation history
+            self._update_nav_history(user_id, menu_state)
+            
+            # Delete the original command message if requested
+            if delete_origin_message and message.message_id:
+                try:
+                    await bot.delete_message(message.chat.id, message.message_id)
+                except TelegramAPIError as e:
+                    logger.warning(f"Could not delete origin message {message.message_id} for user {user_id}: {e}")
+            
+            return sent_message
+        except Exception as e:
+            logger.error(f"Error creating menu for user {user_id}: {e}")
+            raise
+    
+    async def update_menu(
+        self,
+        callback: CallbackQuery,
+        text: str,
+        keyboard: InlineKeyboardMarkup,
+        session: AsyncSession,
+        menu_state: str,
+        parse_mode: str = "Markdown"
+    ) -> bool:
+        """
+        Update the current menu via callback query.
+        Returns True if successful, False otherwise.
+        """
+        user_id = callback.from_user.id
+        bot = callback.bot
+        message = callback.message # This is the message that contains the inline keyboard
         
-        from keyboards.admin_vip_config_kb import get_tariff_select_kb
+        # Clean up any temporary messages
+        await self._cleanup_temp_messages(bot, user_id)
         
-        # MODIFICACIÓN CLAVE: delete_origin_message=True
-        await menu_manager.show_menu(
-            message,
-            "💳 **Generar Token VIP**\n\n"
-            "Selecciona la tarifa para la cual quieres generar un token de activación:",
-            get_tariff_select_kb(tariffs),
-            session,
-            "admin_generate_token",
-            delete_origin_message=True 
-        )
-    except Exception as e:
-        logger.error(f"Error in token generation command: {e}")
-        await menu_manager.send_temporary_message(
-            message,
-            "❌ **Error Temporal**\n\nNo se pudo cargar las tarifas.",
-            auto_delete_seconds=5
-        )
+        try:
+            await message.edit_text(
+                text=text,
+                reply_markup=keyboard,
+                parse_mode=parse_mode
+            )
+            
+            # Update stored menu reference - this is crucial to ensure _active_menus points to the correct message
+            self._active_menus[user_id] = (message.chat.id, message.message_id) # Corregido de message.message.id a message.message_id
+            await set_user_menu_state(session, user_id, menu_state)
+            
+            # Update navigation history
+            self._update_nav_history(user_id, menu_state)
+            
+            return True
+        except TelegramBadRequest as e:
+            if "message is not modified" in str(e).lower():
+                return True  # No change needed
+            logger.error(f"Error updating menu for user {user_id}: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Error updating menu for user {user_id}: {e}")
+            return False
+    
+    async def send_temporary_message(
+        self,
+        message: Message,
+        text: str,
+        keyboard: Optional[InlineKeyboardMarkup] = None,
+        auto_delete_seconds: int = 5,
+        parse_mode: str = "Markdown"
+    ) -> Message:
+        """
+        Send a temporary message that will be automatically deleted.
+        Useful for error messages, confirmations, etc.
+        """
+        user_id = message.from_user.id
+        bot = message.bot
+        
+        # Clean up previous temporary message
+        await self._cleanup_temp_messages(bot, user_id)
+        
+        try:
+            sent_message = await message.answer(
+                text=text,
+                reply_markup=keyboard,
+                parse_mode=parse_mode
+            )
+            
+            # Schedule for deletion
+            import time
+            expire_time = time.time() + auto_delete_seconds
+            self._temp_messages[user_id] = (sent_message.chat.id, sent_message.message_id, expire_time)
+            
+            # Schedule actual deletion
+            asyncio.create_task(self._auto_delete_message(bot, user_id, auto_delete_seconds))
+            
+            return sent_message
+        except Exception as e:
+            logger.error(f"Error sending temporary message for user {user_id}: {e}")
+            raise
+    
+    async def go_back(
+        self,
+        callback: CallbackQuery,
+        session: AsyncSession,
+        default_menu_state: str = "main"
+    ) -> bool:
+        """
+        Navigate back to the previous menu in the history.
+        """
+        user_id = callback.from_user.id
+        history = self._nav_history.get(user_id, [])
+        
+        # Ensure we always have at least one state (the current one) if history is not empty
+        if len(history) > 1:
+            # Remove current state
+            history.pop() 
+            previous_state = history[-1]
+        elif len(history) == 1:
+            # If only one item, it means we are at the "root" of the history for this session.
+            # We should try to go back to it, but not pop it.
+            previous_state = history[0] # Stay at the current state
+            logger.debug(f"User {user_id} is at the start of navigation history. Staying at '{previous_state}'.")
+        else:
+            previous_state = default_menu_state
+            logger.debug(f"User {user_id} has no navigation history. Falling back to default: '{default_menu_state}'.")
+        
+        # Import here to avoid circular imports
+        from utils.menu_factory import menu_factory # Usa la instancia global si existe
+        
+        try:
+            # create_menu necesita 'bot' para ciertas lógicas de texto/teclado.
+            # Pasamos callback.bot
+            text, keyboard = await menu_factory.create_menu(previous_state, callback.from_user.id, session, callback.bot)
+            return await self.update_menu(callback, text, keyboard, session, previous_state)
+        except Exception as e:
+            logger.error(f"Error going back for user {user_id}: {e}")
+            return False
+    
+    async def clear_user_data(self, user_id: int, bot) -> None:
+        """
+        Clear all stored data for a user (menus, temp messages, history).
+        Useful when user logs out or resets.
+        """
+        # Clean up temporary messages
+        await self._cleanup_temp_messages(bot, user_id)
+        
+        # Remove active menu reference
+        self._active_menus.pop(user_id, None)
+        
+        # Clear navigation history
+        self._nav_history.pop(user_id, None)
+    
+    def _update_nav_history(self, user_id: int, menu_state: str) -> None:
+        """Update navigation history for back button functionality."""
+        if user_id not in self._nav_history:
+            self._nav_history[user_id] = []
+        
+        history = self._nav_history[user_id]
+        
+        # Don't add duplicate consecutive states
+        if not history or history[-1] != menu_state:
+            history.append(menu_state)
+            
+            # Limit history size to prevent memory issues
+            if len(history) > 10: # Keep a reasonable history length
+                history.pop(0)
+    
+    async def _cleanup_temp_messages(self, bot, user_id: int) -> None:
+        """Clean up expired temporary messages for a user."""
+        temp_msg = self._temp_messages.get(user_id)
+        if temp_msg:
+            chat_id, msg_id, expire_time = temp_msg
+            import time
+            if time.time() >= expire_time:
+                try:
+                    await bot.delete_message(chat_id, msg_id)
+                except Exception:
+                    pass  # Message might already be deleted or not found
+                finally:
+                    self._temp_messages.pop(user_id, None)
+    
+    async def _auto_delete_message(self, bot, user_id: int, delay: int) -> None:
+        """Auto-delete a temporary message after delay."""
+        await asyncio.sleep(delay)
+        await self._cleanup_temp_messages(bot, user_id)
 
-@router.callback_query(F.data.startswith("generate_token_"))
-async def generate_token_callback(callback: CallbackQuery, session: AsyncSession, bot: Bot):
-    """Enhanced token generation with better feedback."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    try:
-        tariff_id = int(callback.data.split("_")[-1])
-        tariff = await session.get(Tariff, tariff_id)
-        
-        if not tariff:
-            await callback.answer("Tarifa no encontrada", show_alert=True)
-            return
-        
-        # Generate token
-        token_string = str(uuid4())
-        token = Token(token_string=token_string, tariff_id=tariff_id)
-        session.add(token)
-        await session.commit()
-        
-        # Create activation link
-        bot_username = (await bot.get_me()).username
-        link = f"https://t.me/{bot_username}?start={token_string}"
-        
-        from keyboards.common import get_back_kb
-        
-        success_text = (
-            f"✅ **Token VIP Generado**\n\n"
-            f"📋 **Tarifa:** {tariff.name}\n"
-            f"⏱️ **Duración:** {tariff.duration_days} días\n"
-            f"💰 **Precio:** ${tariff.price}\n\n"
-            f"🔗 **Enlace de activación:**\n"
-            f"`{link}`\n\n"
-            f"⚠️ **Importante:** Este enlace es de un solo uso. "
-            f"Compártelo directamente con el cliente."
-        )
-        
-        await menu_manager.update_menu(
-            callback,
-            success_text,
-            get_back_kb("admin_vip"),
-            session,
-            "token_generated"
-        )
-        
-        logger.info(f"Admin {callback.from_user.id} generated token for tariff {tariff.name}")
-    except Exception as e:
-        logger.error(f"Error generating token: {e}")
-        await callback.answer("Error al generar el token", show_alert=True)
-    
-    await callback.answer()
-
-# Nuevo callback para gestión del canal gratuito
-@router.callback_query(F.data == "admin_free_channel")
-async def admin_free_channel_redirect(callback: CallbackQuery, session: AsyncSession):
-    """Redirigir a la gestión del canal gratuito."""
-    if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso denegado", show_alert=True)
-    
-    # Importar y llamar al handler del canal gratuito
-    from handlers.free_channel_admin import free_channel_admin_menu
-    # NOTA: Asegúrate de que free_channel_admin_menu también usa update_menu para evitar nuevos mensajes
-    await free_channel_admin_menu(callback, session)
+# Global menu manager instance
+menu_manager = MenuManager()
 
