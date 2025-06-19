@@ -35,11 +35,15 @@ class MenuManager:
         keyboard: InlineKeyboardMarkup,
         session: AsyncSession,
         menu_state: str,
-        parse_mode: str = "Markdown"
+        parse_mode: str = "Markdown",
+        # NUEVO PARÁMETRO: Indicar si se debe eliminar el mensaje original (ej. el comando /start)
+        delete_origin_message: bool = False 
     ) -> Message:
         """
         Display a menu, replacing any existing menu for this user.
         This ensures only one menu message exists per user.
+        If delete_origin_message is True, attempts to delete the message
+        that triggered this menu display (e.g., a command).
         """
         user_id = message.from_user.id
         bot = message.bot
@@ -52,6 +56,7 @@ class MenuManager:
         if existing:
             chat_id, msg_id = existing
             try:
+                # Intenta editar el mensaje del menú *anterior*
                 await bot.edit_message_text(
                     text=text,
                     chat_id=chat_id,
@@ -60,16 +65,29 @@ class MenuManager:
                     parse_mode=parse_mode
                 )
                 await set_user_menu_state(session, user_id, menu_state)
-                return None  # Message was updated, not created
+                
+                # Si el origen es un comando y se debe eliminar, lo hacemos aquí.
+                if delete_origin_message and message.message_id:
+                    try:
+                        await bot.delete_message(message.chat.id, message.message_id)
+                    except TelegramAPIError as e:
+                        logger.warning(f"Could not delete origin message {message.message_id} for user {user_id}: {e}")
+                return None  # Message was updated, no new message sent
             except TelegramBadRequest as e:
                 if "message is not modified" in str(e).lower():
-                    return None  # No change needed
-                # Message doesn't exist anymore, create new one
-                logger.debug(f"Could not update menu for user {user_id}: {e}")
+                    # Si el mensaje no ha cambiado, no hay necesidad de hacer nada.
+                    if delete_origin_message and message.message_id:
+                        try:
+                            await bot.delete_message(message.chat.id, message.message_id)
+                        except TelegramAPIError as e:
+                            logger.warning(f"Could not delete origin message {message.message_id} for user {user_id}: {e}")
+                    return None
+                # El mensaje no se pudo editar (ej. fue borrado por el usuario), así que necesitamos enviar uno nuevo.
+                logger.debug(f"Could not update menu for user {user_id} (will create new): {e}")
             except Exception as e:
-                logger.error(f"Error updating menu for user {user_id}: {e}")
+                logger.error(f"Error updating menu for user {user_id}, falling back to create new: {e}")
         
-        # Create new menu message
+        # Create new menu message (either because no existing, or update failed)
         try:
             sent_message = await message.answer(
                 text=text,
@@ -81,6 +99,13 @@ class MenuManager:
             
             # Update navigation history
             self._update_nav_history(user_id, menu_state)
+            
+            # Delete the original command message if requested
+            if delete_origin_message and message.message_id:
+                try:
+                    await bot.delete_message(message.chat.id, message.message_id)
+                except TelegramAPIError as e:
+                    logger.warning(f"Could not delete origin message {message.message_id} for user {user_id}: {e}")
             
             return sent_message
         except Exception as e:
@@ -102,7 +127,7 @@ class MenuManager:
         """
         user_id = callback.from_user.id
         bot = callback.bot
-        message = callback.message
+        message = callback.message # This is the message that contains the inline keyboard
         
         # Clean up any temporary messages
         await self._cleanup_temp_messages(bot, user_id)
@@ -114,8 +139,8 @@ class MenuManager:
                 parse_mode=parse_mode
             )
             
-            # Update stored menu reference
-            self._active_menus[user_id] = (message.chat.id, message.message.id)
+            # Update stored menu reference - this is crucial to ensure _active_menus points to the correct message
+            self._active_menus[user_id] = (message.chat.id, message.message_id) # Corregido de message.message.id a message.message_id
             await set_user_menu_state(session, user_id, menu_state)
             
             # Update navigation history
@@ -181,19 +206,27 @@ class MenuManager:
         user_id = callback.from_user.id
         history = self._nav_history.get(user_id, [])
         
+        # Ensure we always have at least one state (the current one) if history is not empty
         if len(history) > 1:
-            # Remove current state and go to previous
-            history.pop()
+            # Remove current state
+            history.pop() 
             previous_state = history[-1]
+        elif len(history) == 1:
+            # If only one item, it means we are at the "root" of the history for this session.
+            # We should try to go back to it, but not pop it.
+            previous_state = history[0] # Stay at the current state
+            logger.debug(f"User {user_id} is at the start of navigation history. Staying at '{previous_state}'.")
         else:
             previous_state = default_menu_state
+            logger.debug(f"User {user_id} has no navigation history. Falling back to default: '{default_menu_state}'.")
         
         # Import here to avoid circular imports
-        from utils.menu_factory import MenuFactory
-        menu_factory = MenuFactory()
+        from utils.menu_factory import menu_factory # Usa la instancia global si existe
         
         try:
-            text, keyboard = await menu_factory.create_menu(previous_state, callback.from_user.id, session)
+            # create_menu necesita 'bot' para ciertas lógicas de texto/teclado.
+            # Pasamos callback.bot
+            text, keyboard = await menu_factory.create_menu(previous_state, callback.from_user.id, session, callback.bot)
             return await self.update_menu(callback, text, keyboard, session, previous_state)
         except Exception as e:
             logger.error(f"Error going back for user {user_id}: {e}")
@@ -225,7 +258,7 @@ class MenuManager:
             history.append(menu_state)
             
             # Limit history size to prevent memory issues
-            if len(history) > 10:
+            if len(history) > 10: # Keep a reasonable history length
                 history.pop(0)
     
     async def _cleanup_temp_messages(self, bot, user_id: int) -> None:
@@ -238,7 +271,7 @@ class MenuManager:
                 try:
                     await bot.delete_message(chat_id, msg_id)
                 except Exception:
-                    pass  # Message might already be deleted
+                    pass  # Message might already be deleted or not found
                 finally:
                     self._temp_messages.pop(user_id, None)
     
@@ -249,3 +282,4 @@ class MenuManager:
 
 # Global menu manager instance
 menu_manager = MenuManager()
+
