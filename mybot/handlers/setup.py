@@ -464,6 +464,8 @@ async def setup_levels(callback: CallbackQuery, session: AsyncSession):
     )
     await callback.answer()
 
+# mybot/handlers/setup.py.txt (Continuación desde "--- Tariff Handlers ---")
+
 # --- Tariff Handlers ---
 # setup_tariffs_menu ya existe
 # setup_basic_tariff ya existe (que también crea tarifas "premium" por defecto)
@@ -508,4 +510,165 @@ async def setup_custom_tariffs(callback: CallbackQuery, session: AsyncSession):
 async def show_setup_guide(callback: CallbackQuery, session: AsyncSession):
     """Show setup guide for admin."""
     if not is_admin(callback.from_user.id):
-        return await callback.answer("Acceso dene
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    text, keyboard = await menu_factory.create_menu("setup_guide_info", callback.from_user.id, session, callback.bot)
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "setup_guide_info"
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "setup_advanced")
+async def setup_advanced(callback: CallbackQuery, session: AsyncSession):
+    """Handle advanced setup options."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    text, keyboard = await menu_factory.create_menu("setup_advanced_info", callback.from_user.id, session, callback.bot)
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "setup_advanced_info"
+    )
+    await callback.answer()
+
+# Error handlers and cleanup
+@router.callback_query(F.data.startswith("cancel_"))
+async def cancel_setup_action(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Cancel current setup action and return to main setup menu."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+
+    await state.clear() # Limpiar el estado de FSM
+
+    text, keyboard = await menu_factory.create_menu("setup_main", callback.from_user.id, session, callback.bot)
+    
+    await menu_manager.update_menu(
+        callback,
+        "❌ **Acción Cancelada**\n\n"
+        "La configuración ha sido cancelada. Puedes intentar nuevamente cuando quieras.\n\n"
+        f"**Siguiente paso**: {text.splitlines()[0]}", # Añade el título del menú principal de setup
+        keyboard,
+        session,
+        "setup_main"
+    )
+    await callback.answer()
+
+# Handler para el botón "admin_main" en get_setup_complete_kb
+@router.callback_query(F.data == "admin_main")
+async def navigate_to_admin_main_from_setup(callback: CallbackQuery, session: AsyncSession):
+    """Navigate to the main admin panel after setup completion or skip."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    text, keyboard = await menu_factory.create_menu("admin_main", callback.from_user.id, session, callback.bot)
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "admin_main"
+    )
+    await callback.answer()
+
+
+# --- NUEVOS HANDLERS PARA EL MENÚ DE ELECCIÓN INICIAL DEL ADMINISTRADOR (/start) ---
+
+@router.callback_query(F.data == "start_setup")
+async def handle_start_setup_callback(callback: CallbackQuery, session: AsyncSession, state: FSMContext):
+    """
+    Handles the '🚀 Configurar Ahora' button from the initial admin choice menu.
+    Redirects to the main setup menu.
+    """
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    await state.clear() # Limpia cualquier estado de FSM por si acaso
+
+    text, keyboard = await menu_factory.create_menu("setup_main", callback.from_user.id, session, callback.bot)
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "setup_main" # Asegúrate de registrar el estado correcto
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "skip_to_admin")
+async def handle_skip_to_admin_callback(callback: CallbackQuery, session: AsyncSession, state: FSMContext):
+    """
+    Handles the '⏭️ Ir al Panel' button from the initial admin choice menu.
+    Redirects to the main admin panel.
+    """
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    await state.clear() # Limpia cualquier estado de FSM por si acaso
+
+    text, keyboard = await menu_factory.create_menu("admin_main", callback.from_user.id, session, callback.bot)
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "admin_main" # Asegúrate de registrar el estado correcto
+    )
+    await callback.answer()
+
+@router.callback_query(F.data == "show_setup_guide")
+async def handle_show_setup_guide_callback(callback: CallbackQuery, session: AsyncSession, state: FSMContext):
+    """
+    Handles the '📖 Ver Guía' button from the initial admin choice menu.
+    Redirects to the setup guide menu.
+    """
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    await state.clear() # Limpia cualquier estado de FSM por si acaso
+
+    text, keyboard = await menu_factory.create_menu("setup_guide_info", callback.from_user.id, session, callback.bot)
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "setup_guide_info" # Asegúrate de registrar el estado correcto
+    )
+    await callback.answer()
+
+# --- HANDLER PARA EL BOTÓN "JUEGO KINKY" EN EL MENÚ DE ADMINISTRACIÓN ---
+
+@router.callback_query(F.data == "admin_kinky_game") # Asumiendo este callback_data para el menú de administración
+async def handle_admin_kinky_game_button(callback: CallbackQuery, session: AsyncSession):
+    """
+    Handles the 'Juego Kinky' button click from the admin panel.
+    Displays the Kinky Game menu or info for admins.
+    """
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    from utils.keyboard_utils import get_admin_manage_content_keyboard # Asegurarse de la importación
+    
+    text = "🎲 **Panel de Gestión de Gamificación Kinky**\n\n" \
+           "¡Bienvenido al centro de control de todos tus juegos y actividades! " \
+           "Aquí puedes gestionar usuarios, misiones, recompensas y más. " \
+           "Elige lo que quieres hacer:"
+    
+    keyboard = get_admin_manage_content_keyboard()
+    
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "admin_gamification_main" # Usamos este estado, ya que es el menú de gamificación general
+    )
+    await callback.answer()
+        
