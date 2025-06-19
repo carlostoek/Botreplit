@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from aiogram import Bot, Dispatcher
 from aiogram.enums.parse_mode import ParseMode
 from aiogram.client.bot import DefaultBotProperties
@@ -16,8 +17,9 @@ from handlers.vip.auction_user import router as auction_user_router
 from handlers.interactive_post import router as interactive_post_router
 from handlers.admin import admin_router
 from handlers.admin.auction_admin import router as auction_admin_router
+from handlers import setup as setup_handlers # ¡IMPORTACIÓN CLAVE!
+
 from utils.config import BOT_TOKEN, VIP_CHANNEL_ID
-import logging
 from services import channel_request_scheduler, vip_subscription_scheduler
 from services.scheduler import auction_monitor_scheduler
 
@@ -53,6 +55,13 @@ async def main() -> None:
     dp.poll_answer.middleware(PointsMiddleware())
     dp.message_reaction.middleware(PointsMiddleware())
 
+    # --- INCLUSIÓN DEL ROUTER DE SETUP ---
+    # Es crucial incluirlo para que sus handlers sean reconocidos.
+    # Colocarlo aquí, antes de otros routers que puedan tener handlers genéricos,
+    # ayuda a asegurar que el comando /setup sea manejado por el handler correcto.
+    dp.include_router(setup_handlers.router) 
+    # --- FIN INCLUSIÓN ROUTER DE SETUP ---
+
     dp.include_router(start_token)
     dp.include_router(start.router)
     dp.include_router(admin_router)
@@ -82,3 +91,4 @@ async def main() -> None:
 
 if __name__ == "__main__":
     asyncio.run(main())
+
