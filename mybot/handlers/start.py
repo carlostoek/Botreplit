@@ -70,15 +70,13 @@ async def cmd_start(message: Message, session: AsyncSession):
         
         # If admin hasn't completed basic setup, guide them to setup
         if not tenant_status["basic_setup_complete"]:
-            # MODIFICACIÓN: Usar menu_factory para obtener el teclado de setup choice
-            # Y pasar delete_origin_message=True para eliminar el comando /start del admin
-            text_setup, keyboard_setup = menu_factory.create_setup_choice_menu() # Nuevo método en MenuFactory
+            text_setup, keyboard_setup = menu_factory.create_setup_choice_menu() 
             await menu_manager.show_menu(
                 message,
                 text_setup,
                 keyboard_setup,
                 session,
-                "admin_setup_choice",
+                "admin_setup_choice", # <-- Este estado ahora es reconocido por menu_factory
                 delete_origin_message=True # ¡Importante para eliminar el /start!
             )
             return # Terminar aquí para el flujo de setup
@@ -90,10 +88,10 @@ async def cmd_start(message: Message, session: AsyncSession):
         
         # Customize welcome message for new vs returning users
         # Solo personaliza si es el menú principal, no si es un sub-menú ya generado
-        if "main" in menu_factory._get_current_menu_state_from_text(text): # Helper para saber si es un menú "main"
+        # (La lógica de `_get_current_menu_state_from_text` se encarga de esto)
+        if "main" in menu_factory._get_current_menu_state_from_text(text): 
             if is_new_user:
                 welcome_prefix = "🌟 **¡Bienvenido!**\n\n"
-                # Ajustar prefijo si el menú principal ya implica un rol (ej. Admin, VIP)
                 if "panel de administración" in text.lower():
                     welcome_prefix = "👑 **¡Bienvenido, Administrador!**\n\n"
                 elif "suscripción vip" in text.lower() or "experiencia premium" in text.lower():
@@ -128,18 +126,6 @@ async def cmd_start(message: Message, session: AsyncSession):
             auto_delete_seconds=5
         )
 
-# MOVER esta función DENTRO de la clase MenuFactory en menu_factory.py
-# Y ELIMINAR LA LÍNEA: menu_factory._create_setup_choice_kb = _create_setup_choice_kb
-# Aquí es solo para referencia de lo que se mueve.
-"""
-def _create_setup_choice_kb():
-    
-    from aiogram.utils.keyboard import InlineKeyboardBuilder
-    
-    builder = InlineKeyboardBuilder()
-    builder.button(text="🚀 Configurar Ahora", callback_data="start_setup")
-    builder.button(text="⏭️ Ir al Panel", callback_data="skip_to_admin")
-    builder.button(text="📖 Ver Guía", callback_data="show_setup_guide")
-    builder.adjust(1)
-    return builder.as_markup()
-"""
+# NOTA: La función _create_setup_choice_kb y su asignación
+# ya se MOVIERON completamente a menu_factory.py.txt
+# Asegúrate de que no existan duplicados aquí.
