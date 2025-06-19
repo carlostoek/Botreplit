@@ -308,3 +308,4 @@ class MenuFactory:
 
 # Global factory instance
 menu_factory = MenuFactory()
+        
