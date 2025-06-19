@@ -13,6 +13,9 @@ from keyboards.setup_kb import get_setup_main_kb, get_setup_channels_kb, get_set
 from database.models import User
 import logging
 
+# Importar InlineKeyboardBuilder aquí, ya que se usará en el nuevo método de la clase
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 # Mover todas las importaciones de creadores de menú específicos al inicio
 from utils.menu_creators import (
     create_profile_menu,
@@ -164,6 +167,45 @@ class MenuFactory:
             return (text, get_vip_main_kb())
         else: # Default for 'free' or unknown
             return (text, get_subscription_kb())
+
+    def create_setup_choice_menu(self) -> Tuple[str, InlineKeyboardMarkup]:
+        """
+        Crea el texto y el teclado para la elección inicial de configuración del admin.
+        Este método se mueve aquí desde handlers/start.py.
+        """
+        
+        builder = InlineKeyboardBuilder()
+        builder.button(text="🚀 Configurar Ahora", callback_data="start_setup")
+        builder.button(text="⏭️ Ir al Panel", callback_data="skip_to_admin")
+        builder.button(text="📖 Ver Guía", callback_data="show_setup_guide")
+        builder.adjust(1)
+        
+        text = (
+            "👋 **¡Hola, Administrador!**\n\n"
+            "Parece que es la primera vez que usas este bot. "
+            "Te guiaré a través de una configuración rápida para que "
+            "esté listo para tus usuarios.\n\n"
+            "**¿Quieres configurar el bot ahora?**\n"
+            "• ✅ Configuración guiada (recomendado)\n"
+            "• ⏭️ Ir directo al panel de administración\n\n"
+            "La configuración solo toma unos minutos y puedes "
+            "cambiar todo después."
+        )
+        return text, builder.as_markup()
+
+    def _get_current_menu_state_from_text(self, text: str) -> str:
+        """
+        Intenta inferir el estado del menú a partir de su texto.
+        Esto es un helper para la lógica de personalización en cmd_start.
+        """
+        text_lower = text.lower()
+        if "panel de administración" in text_lower:
+            return "admin_main"
+        elif "bienvenido al diván de diana" in text_lower or "experiencia premium" in text_lower:
+            return "vip_main"
+        elif "bienvenido a los kinkys" in text_lower or "explora nuestro contenido gratuito" in text_lower:
+            return "free_main"
+        return "unknown" # O un estado por defecto
 
 # Global factory instance
 menu_factory = MenuFactory()
