@@ -6,16 +6,18 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import CommandStart, Command
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# from keyboards.admin_main_kb import get_admin_main_kb # Ya no es necesario importar directamente si menu_factory lo maneja
+from keyboards.admin_main_kb import get_admin_main_kb
 from utils.user_roles import is_admin
 from utils.menu_manager import menu_manager
-from utils.menu_factory import menu_factory # Asegúrate de que esta instancia global sea la que se usa
+from utils.menu_factory import menu_factory
 from services.tenant_service import TenantService
 from services import get_admin_statistics
 from database.models import Tariff, Token
 from uuid import uuid4
 from sqlalchemy import select
 from utils.messages import BOT_MESSAGES
+from utils.keyboard_utils import get_admin_manage_content_keyboard # Importar la función del teclado
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -42,10 +44,7 @@ router.include_router(event_admin_router)
 async def admin_start(message: Message, session: AsyncSession):
     """Enhanced admin start with setup detection."""
     if not is_admin(message.from_user.id):
-        # Si no es admin, no hacemos nada o redirigimos al menú de usuario normal.
-        # Asumo que tienes un handler CommandStart para usuarios no admin en start.py
-        # No eliminar el mensaje si el usuario no es admin y este handler no es el final.
-        return 
+        return
     
     # Check if this admin needs setup
     tenant_service = TenantService(session)
@@ -54,34 +53,30 @@ async def admin_start(message: Message, session: AsyncSession):
     if not tenant_status["basic_setup_complete"]:
         # Redirect to setup
         from handlers.setup import start_setup
-        await start_setup(message, session)
-        # Importante: Pasar delete_origin_message=True a start_setup si también maneja menús
-        # o asegúrate de que start_setup borre el mensaje de comando si inicia un proceso interactivo.
+        await start_setup(message, session, user_id=message.from_user.id)
         return
     
     # Show admin panel
     text, keyboard = await menu_factory.create_menu("admin_main", message.from_user.id, session, message.bot)
-    # MODIFICACIÓN CLAVE: delete_origin_message=True
-    await menu_manager.show_menu(message, text, keyboard, session, "admin_main", delete_origin_message=True)
+    await menu_manager.show_menu(message, text, keyboard, session, "admin_main")
 
 @router.message(Command("admin_menu"))
-async def admin_menu(message: Message, session: AsyncSession):
+async def admin_menu(message: Message, session: AsyncSession, user_id: int | None = None):
     """Enhanced admin menu command."""
-    if not is_admin(message.from_user.id):
+    uid = user_id if user_id is not None else message.from_user.id
+    if not is_admin(uid):
         await menu_manager.send_temporary_message(
             message,
             "❌ **Acceso Denegado**\n\nNo tienes permisos de administrador.",
             auto_delete_seconds=5
         )
-        # No eliminar el mensaje de comando si se muestra un error temporal.
         return
     
     try:
-        text, keyboard = await menu_factory.create_menu("admin_main", message.from_user.id, session, message.bot)
-        # MODIFICACIÓN CLAVE: delete_origin_message=True
-        await menu_manager.show_menu(message, text, keyboard, session, "admin_main", delete_origin_message=True)
+        text, keyboard = await menu_factory.create_menu("admin_main", uid, session, message.bot)
+        await menu_manager.show_menu(message, text, keyboard, session, "admin_main")
     except Exception as e:
-        logger.error(f"Error showing admin menu for user {message.from_user.id}: {e}")
+        logger.error(f"Error showing admin menu for user {uid}: {e}")
         await menu_manager.send_temporary_message(
             message,
             "❌ **Error Temporal**\n\nNo se pudo cargar el panel de administración.",
@@ -146,10 +141,9 @@ async def admin_back(callback: CallbackQuery, session: AsyncSession):
     
     try:
         # Use menu manager's back functionality
-        # Asegúrate de que go_back use la instancia global de menu_factory
         success = await menu_manager.go_back(callback, session, "admin_main")
         if not success:
-            # Fallback to main admin menu if history fails
+            # Fallback to main admin menu
             text, keyboard = await menu_factory.create_menu("admin_main", callback.from_user.id, session, callback.bot)
             await menu_manager.update_menu(callback, text, keyboard, session, "admin_main")
     except Exception as e:
@@ -173,34 +167,52 @@ async def back_to_admin_main(callback: CallbackQuery, session: AsyncSession):
     
     await callback.answer()
 
-@router.callback_query(F.data == "admin_manage_content")
-async def admin_manage_content(callback: CallbackQuery, session: AsyncSession):
-    """Enhanced content management menu."""
+# --- MODIFICACIÓN: RENOMBRADO Y REUTILIZADO PARA GESTIÓN DE GAMIFICACIÓN ---
+@router.callback_query(F.data == "admin_manage_content") # Este sigue siendo el callback de los botones dentro de get_admin_manage_content_keyboard
+async def handle_gamification_content_menu(callback: CallbackQuery, session: AsyncSession):
+    """
+    Shows the comprehensive content and gamification management menu.
+    This handler is now the central point for managing all gamification features.
+    """
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
     try:
-        from utils.keyboard_utils import get_admin_manage_content_keyboard
+        # El texto se personaliza para este menú principal de gamificación
+        text = "🎮 **Panel de Gestión de Gamificación**\n\n" \
+               "Desde aquí puedes administrar usuarios, misiones, recompensas, " \
+               "niveles, minijuegos, subastas y eventos. Elige una opción para empezar:"
+        
+        # Reutilizamos el teclado que ya tienes con todas las opciones de gamificación
+        keyboard = get_admin_manage_content_keyboard()
         
         await menu_manager.update_menu(
             callback,
-            "🎮 **Gestión de Contenido y Gamificación**\n\n"
-            "Administra todos los aspectos del sistema de juego y engagement:\n\n"
-            "• 👥 Gestión de usuarios y puntos\n"
-            "• 🎯 Misiones y desafíos\n"
-            "• 🏅 Sistema de insignias\n"
-            "• 🎁 Catálogo de recompensas\n"
-            "• 🏛️ Subastas en tiempo real\n"
-            "• 🎉 Eventos especiales",
-            get_admin_manage_content_keyboard(),
+            text,
+            keyboard,
             session,
-            "admin_manage_content",
+            "admin_gamification_main" # Nuevo estado para el historial más descriptivo
         )
     except Exception as e:
-        logger.error(f"Error showing content management: {e}")
-        await callback.answer("Error al cargar la gestión de contenido", show_alert=True)
+        logger.error(f"Error showing gamification content management: {e}")
+        await callback.answer("Error al cargar el panel de gamificación", show_alert=True)
     
     await callback.answer()
+
+# --- NUEVO HANDLER PARA EL BOTÓN "JUEGO KINKY" EN EL MENÚ PRINCIPAL DEL ADMIN ---
+@router.callback_query(F.data == "admin_kinky_game") # ASUME QUE ESTE ES EL CALLBACK_DATA DE TU BOTÓN "JUEGO KINKY" EN admin_main_kb
+async def handle_kinky_game_button_from_main(callback: CallbackQuery, session: AsyncSession):
+    """
+    Handles the 'Juego Kinky' button click from the main admin menu.
+    Redirects to the main gamification management panel.
+    """
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+    
+    # Simplemente llamamos al handler que ya muestra el menú completo de gamificación
+    await handle_gamification_content_menu(callback, session)
+    # No es necesario un callback.answer() aquí porque handle_gamification_content_menu ya lo hace.
+
 
 @router.callback_query(F.data == "admin_bot_config")
 async def admin_bot_config(callback: CallbackQuery, session: AsyncSession):
@@ -254,7 +266,6 @@ async def admin_generate_token_cmd(message: Message, session: AsyncSession, bot:
             "❌ **Acceso Denegado**\n\nNo tienes permisos de administrador.",
             auto_delete_seconds=5
         )
-        # No eliminar el mensaje de comando si se muestra un error temporal.
         return
     
     try:
@@ -268,20 +279,17 @@ async def admin_generate_token_cmd(message: Message, session: AsyncSession, bot:
                 "Primero debes configurar las tarifas VIP desde el panel de administración.",
                 auto_delete_seconds=8
             )
-            # No eliminar el mensaje de comando si se muestra un error temporal.
             return
         
         from keyboards.admin_vip_config_kb import get_tariff_select_kb
         
-        # MODIFICACIÓN CLAVE: delete_origin_message=True
         await menu_manager.show_menu(
             message,
             "💳 **Generar Token VIP**\n\n"
             "Selecciona la tarifa para la cual quieres generar un token de activación:",
             get_tariff_select_kb(tariffs),
             session,
-            "admin_generate_token",
-            delete_origin_message=True 
+            "admin_generate_token"
         )
     except Exception as e:
         logger.error(f"Error in token generation command: {e}")
@@ -352,6 +360,5 @@ async def admin_free_channel_redirect(callback: CallbackQuery, session: AsyncSes
     
     # Importar y llamar al handler del canal gratuito
     from handlers.free_channel_admin import free_channel_admin_menu
-    # NOTA: Asegúrate de que free_channel_admin_menu también usa update_menu para evitar nuevos mensajes
     await free_channel_admin_menu(callback, session)
 
