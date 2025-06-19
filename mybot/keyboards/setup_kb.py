@@ -10,7 +10,7 @@ def get_setup_main_kb() -> InlineKeyboardMarkup:
     builder.button(text="📢 Configurar Canales", callback_data="setup_channels")
     builder.button(text="🎮 Configurar Gamificación", callback_data="setup_gamification")
     builder.button(text="💳 Configurar Tarifas VIP", callback_data="setup_tariffs")
-    builder.button(text="✅ Finalizar Configuración", callback_data="setup_complete")
+    builder.button(text="✅ Finalizar Configuración", callback_data="setup_complete_setup")
     builder.button(text="⏭️ Omitir Configuración", callback_data="skip_setup")
     builder.adjust(1)
     return builder.as_markup()
