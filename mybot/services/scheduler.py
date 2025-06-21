@@ -94,7 +94,8 @@ async def run_vip_subscription_check(bot: Bot, session_factory: async_sessionmak
         for user in expired_users:
             try:
                 if vip_channel_id:
-                    await bot.kick_chat_member(vip_channel_id, user.id)
+                    await bot.ban_chat_member(vip_channel_id, user.id)
+                    await bot.unban_chat_member(vip_channel_id, user.id)
             except Exception as e:
                 logging.exception("Failed to remove %s from VIP channel: %s", user.id, e)
             user.role = "free"
