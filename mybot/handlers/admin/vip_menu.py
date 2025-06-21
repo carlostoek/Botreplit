@@ -385,7 +385,7 @@ async def vip_revoke(callback: CallbackQuery, session: AsyncSession):
         return await callback.answer()
     user_id = int(callback.data.split("_")[-1])
     sub_service = SubscriptionService(session)
-    await sub_service.revoke_subscription(user_id)
+    await sub_service.revoke_subscription(user_id, bot=callback.bot)
     await callback.answer("❌ Suscripción revocada", show_alert=True)
 
 
