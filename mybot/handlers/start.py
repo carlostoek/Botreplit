@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
 from utils.text_utils import sanitize_text
 from utils.menu_manager import menu_manager
-from utils.menu_factory import menu_factory # Asegúrate de que esta sea la instancia global
+from utils.menu_factory import menu_factory 
 from utils.user_roles import clear_role_cache, is_admin
 from services.tenant_service import TenantService
 import logging
@@ -63,49 +63,54 @@ async def cmd_start(message: Message, session: AsyncSession):
             await session.commit()
             logger.info(f"Updated user info: {user_id}")
     
-    # Check if this is an admin and if setup is needed
+    # Check if this is an admin
     if is_admin(user_id):
         tenant_service = TenantService(session)
-        tenant_status = await tenant_service.get_tenant_status(user_id)
         
-        # If admin hasn't completed basic setup, guide them to setup
-        if not tenant_status["basic_setup_complete"]:
-            text_setup, keyboard_setup = menu_factory.create_setup_choice_menu() 
-            await menu_manager.show_menu(
+        # Opcional: Asegurarse de que el tenant exista, incluso si no se completará el setup
+        # Esto es importante para que el panel de administración funcione correctamente
+        init_result = await tenant_service.initialize_tenant(user_id)
+        if not init_result["success"]:
+            logger.error(f"Failed to initialize tenant for admin {user_id}: {init_result['error']}")
+            await menu_manager.send_temporary_message(
                 message,
-                text_setup,
-                keyboard_setup,
-                session,
-                "admin_setup_choice", # <-- Este estado es reconocido por menu_factory
-                delete_origin_message=True # ¡Importante para eliminar el /start!
+                f"❌ **Error Crítico**\n\nNo se pudo inicializar la configuración de administrador. Por favor, contacta a soporte.",
+                auto_delete_seconds=10
             )
-            return # Terminar aquí para el flujo de setup
+            return
+
+        # *** CAMBIO CLAVE AQUÍ: Siempre ir al panel de administración para admins ***
+        text, keyboard = await menu_factory.create_menu("admin_main", user_id, session, message.bot)
+        
+        # Personalizar mensaje de bienvenida para admin al iniciar
+        welcome_prefix = "👑 **¡Bienvenido, Administrador!**\n\n"
+        text = welcome_prefix + text.split('\n\n', 1)[-1] # Mantiene el texto del menú, pero reemplaza el saludo inicial
+
+        await menu_manager.show_menu(
+            message,
+            text,
+            keyboard,
+            session,
+            "admin_main", # Asegúrate de registrar el estado correcto
+            delete_origin_message=True
+        )
+        return # Terminar aquí para el flujo de administración
     
-    # Create appropriate menu based on user role and status
+    # Lógica para usuarios no-administradores (VIP, Free)
     try:
-        # Obtener el texto y teclado del menú principal
         text, keyboard = await menu_factory.create_menu("main", user_id, session, message.bot)
         
-        # Customize welcome message for new vs returning users
-        # Solo personaliza si es el menú principal, no si es un sub-menú ya generado
-        # (La lógica de `_get_current_menu_state_from_text` se encarga de esto)
-        if "main" in menu_factory._get_current_menu_state_from_text(text): 
-            if is_new_user:
-                welcome_prefix = "🌟 **¡Bienvenido!**\n\n"
-                if "panel de administración" in text.lower():
-                    welcome_prefix = "👑 **¡Bienvenido, Administrador!**\n\n"
-                elif "suscripción vip" in text.lower() or "experiencia premium" in text.lower():
-                    welcome_prefix = "✨ **¡Bienvenido, Miembro VIP!**\n\n"
-                
-                text = welcome_prefix + text
+        if is_new_user:
+            welcome_prefix = "🌟 **¡Bienvenido!**\n\n"
+            if "suscripción vip" in text.lower() or "experiencia premium" in text.lower():
+                welcome_prefix = "✨ **¡Bienvenido, Miembro VIP!**\n\n"
+            
+            text = welcome_prefix + text
+        else:
+            if "suscripción vip" in text.lower() or "experiencia premium" in text.lower():
+                text = "✨ **Bienvenido de vuelta**\n\n" + text.split('\n\n', 1)[-1]
             else:
-                # Returning user - more concise welcome
-                if "panel de administración" in text.lower():
-                    text = "👑 **Panel de Administración**\n\n" + text.split('\n\n', 1)[-1]
-                elif "suscripción vip" in text.lower() or "experiencia premium" in text.lower():
-                    text = "✨ **Bienvenido de vuelta**\n\n" + text.split('\n\n', 1)[-1]
-                else:
-                    text = "🌟 **¡Hola de nuevo!**\n\n" + text.split('\n\n', 1)[-1]
+                text = "🌟 **¡Hola de nuevo!**\n\n" + text.split('\n\n', 1)[-1]
         
         await menu_manager.show_menu(
             message, 
@@ -113,19 +118,15 @@ async def cmd_start(message: Message, session: AsyncSession):
             keyboard, 
             session, 
             "main",
-            delete_origin_message=True # ¡Importante para eliminar el /start!
+            delete_origin_message=True
         )
         
     except Exception as e:
         logger.error(f"Error in start command for user {user_id}: {e}")
-        # Fallback to basic menu
         await menu_manager.send_temporary_message(
             message,
             "❌ **Error Temporal**\n\n"
             "Hubo un problema al cargar el menú. Por favor, intenta nuevamente en unos segundos.",
             auto_delete_seconds=5
         )
-
-# NOTA: La función _create_setup_choice_kb y su asignación
-# ya se MOVIERON completamente a menu_factory.py.txt
-# Asegúrate de que no existan duplicados aquí.
+        
