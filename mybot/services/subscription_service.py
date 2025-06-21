@@ -121,7 +121,8 @@ class SubscriptionService:
             vip_channel_id = await config_service.get_vip_channel_id()
             if vip_channel_id:
                 try:
-                    await bot.kick_chat_member(vip_channel_id, user_id)
+                    await bot.ban_chat_member(vip_channel_id, user_id)
+                    await bot.unban_chat_member(vip_channel_id, user_id)
                 except Exception as e:
                     logger.exception("Failed to remove %s from VIP channel: %s", user_id, e)
 
