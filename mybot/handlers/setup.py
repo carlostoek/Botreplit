@@ -502,9 +502,56 @@ async def setup_custom_tariffs(callback: CallbackQuery, session: AsyncSession):
     )
     await callback.answer()
 
+
 # --- Completion and Navigation Handlers ---
-# complete_setup ya existe
-# skip_setup ya existe
+
+@router.callback_query(F.data == "setup_complete_setup")
+async def handle_setup_complete(callback: CallbackQuery, session: AsyncSession, state: FSMContext):
+    """Display setup completion message."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+
+    await state.clear()
+
+    text, keyboard = await menu_factory.create_menu(
+        "setup_complete",
+        callback.from_user.id,
+        session,
+        callback.bot,
+    )
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "setup_complete",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "skip_setup")
+async def handle_skip_setup(callback: CallbackQuery, session: AsyncSession, state: FSMContext):
+    """Skip remaining setup steps and go directly to the admin panel."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer("Acceso denegado", show_alert=True)
+
+    await state.clear()
+
+    text, keyboard = await menu_factory.create_menu(
+        "admin_main",
+        callback.from_user.id,
+        session,
+        callback.bot,
+    )
+    await menu_manager.update_menu(
+        callback,
+        text,
+        keyboard,
+        session,
+        "admin_main",
+    )
+    await callback.answer()
+
 
 @router.callback_query(F.data == "setup_guide")
 async def show_setup_guide(callback: CallbackQuery, session: AsyncSession):
