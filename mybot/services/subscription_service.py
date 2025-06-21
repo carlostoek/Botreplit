@@ -3,6 +3,9 @@ from __future__ import annotations
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from aiogram import Bot
+
+from services.config_service import ConfigService
 
 from database.models import VipSubscription, User, Token, Tariff
 import logging
@@ -101,8 +104,8 @@ class SubscriptionService:
         logger.info(f"Extended VIP subscription for user {user_id} by {days} days")
         return sub
 
-    async def revoke_subscription(self, user_id: int) -> None:
-        """Immediately expire a user's subscription."""
+    async def revoke_subscription(self, user_id: int, *, bot: Bot | None = None) -> None:
+        """Immediately expire a user's subscription and optionally kick from the VIP channel."""
         now = datetime.utcnow()
         sub = await self.get_subscription(user_id)
         if sub:
@@ -112,6 +115,15 @@ class SubscriptionService:
         if user:
             user.role = "free"
             user.vip_expires_at = None
+
+        if bot:
+            config_service = ConfigService(self.session)
+            vip_channel_id = await config_service.get_vip_channel_id()
+            if vip_channel_id:
+                try:
+                    await bot.kick_chat_member(vip_channel_id, user_id)
+                except Exception as e:
+                    logger.exception("Failed to remove %s from VIP channel: %s", user_id, e)
 
         await self.session.commit()
         logger.info(f"Revoked VIP subscription for user {user_id}")
