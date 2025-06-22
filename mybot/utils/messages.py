@@ -106,32 +106,29 @@ BOT_MESSAGES = {
     "level_updated": "✅ Nivel actualizado.",
     "level_deleted": "❌ Nivel eliminado.",
     "FREE_MENU_TEXT": "✨ *Bienvenid@ a mi espacio gratuito*\n\nElige y descubre un poco de mi mundo...",
-    "FREE_ABOUT_TEXT": (
-        "📌 *Sobre mí*\n"
-        "Soy Diana, aunque cuando la noche se enciende me conocen como *Señorita Kinky*. "
-        "Te invito a un recorrido sensual y divertido. Esto es solo la entrada..."
+    "FREE_GIFT_TEXT": (
+        "🎁 *Desbloquear regalo*\n"
+        "Activa tu obsequio de bienvenida y descubre los primeros detalles de todo lo que tengo para ti."
     ),
-    "FREE_FIND_TEXT": (
-        "🪞 *Qué puedes encontrar aquí*\n"
-        "Retos, consejos y un vistazo a mi universo más travieso. Todo pensado para que quieras más."
+    "FREE_PACKS_TEXT": (
+        "🎀 *Ver mis packs exclusivos*\n"
+        "Explora mis colecciones de fotos y videos más picantes listas para ti."
     ),
-    "FREE_FREE_TEXT": (
-        "🎁 *Lo que sí puedes ver gratis*\n"
-        "Acceso a mi canal abierto y algunos eventos especiales. Una probadita que enciende la curiosidad."
+    "FREE_VIP_EXPLORE_TEXT": (
+        "🔐 *Explorar el canal VIP*\n"
+        "Aquí comparto el contenido más atrevido y sorpresas solo para miembros. ¿Te unes?"
     ),
-    "FREE_VIP_TEXT": (
-        "🔒 *Lo que te estás perdiendo (contenido VIP)*\n"
-        "Fotos y videos exclusivos, juegos completos y mi atención más personal. "
-        "Ser VIP es vivir la experiencia completa."
-    ),
-    "FREE_PRIVATE_TEXT": (
-        "🔥 *Sesiones privadas y contenido personalizado*\n"
-        "Reserva un encuentro íntimo conmigo o solicita tu video a medida. "
-        "Tus fantasías pueden hacerse realidad."
+    "FREE_CUSTOM_TEXT": (
+        "💌 *Quiero contenido personalizado*\n"
+        "Cuéntame tus fantasías y recibirás algo hecho solo para ti."
     ),
     "FREE_GAME_TEXT": (
-        "🎮 *Juego Kinky (versión gratuita)*\n"
+        "🎮 *Modo gratuito del juego Kinky*\n"
         "Disfruta de un adelanto de la diversión. La versión completa te espera en el VIP."
+    ),
+    "FREE_FOLLOW_TEXT": (
+        "🌐 *¿Dónde más seguirme?*\n"
+        "Encuentra todos mis enlaces y redes para que no te pierdas nada."
     ),
 }
 

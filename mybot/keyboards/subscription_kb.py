@@ -5,12 +5,12 @@ from aiogram.types import InlineKeyboardMarkup
 def get_free_main_menu_kb() -> InlineKeyboardMarkup:
     """Return the main menu keyboard for free users."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="📌 Sobre mí", callback_data="free_about")
-    builder.button(text="🪞 Qué puedes encontrar aquí", callback_data="free_find")
-    builder.button(text="🎁 Lo que sí puedes ver gratis", callback_data="free_free")
-    builder.button(text="🔒 Lo que te estás perdiendo (contenido VIP)", callback_data="free_vip")
-    builder.button(text="🔥 Sesiones privadas y contenido personalizado", callback_data="free_private")
-    builder.button(text="🎮 Probar el Juego Kinky (versión gratuita)", callback_data="free_game")
+    builder.button(text="🎁 Desbloquear regalo", callback_data="free_gift")
+    builder.button(text="🎀 Ver mis packs exclusivos", callback_data="free_packs")
+    builder.button(text="🔐 Explorar el canal VIP", callback_data="free_vip_explore")
+    builder.button(text="💌 Quiero contenido personalizado", callback_data="free_custom")
+    builder.button(text="🎮 Modo gratuito del juego Kinky", callback_data="free_game")
+    builder.button(text="🌐 ¿Dónde más seguirme?", callback_data="free_follow")
     builder.adjust(1)
     return builder.as_markup()
 
