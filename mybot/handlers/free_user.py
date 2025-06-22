@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from utils.user_roles import get_user_role
 from utils.menu_manager import menu_manager
 from keyboards.subscription_kb import get_free_main_menu_kb
+from keyboards.packs_kb import get_packs_list_kb, get_pack_detail_kb
 from utils.messages import BOT_MESSAGES
 from utils.keyboard_utils import get_back_keyboard
+from utils.notify_admins import notify_admins
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -58,8 +60,8 @@ async def cb_free_gift(callback: CallbackQuery, session: AsyncSession):
 async def cb_free_packs(callback: CallbackQuery, session: AsyncSession):
     await menu_manager.update_menu(
         callback,
-        BOT_MESSAGES.get("FREE_PACKS_TEXT", "Packs exclusivos"),
-        get_back_keyboard("free_main_menu"),
+        BOT_MESSAGES.get("PACKS_MENU_TEXT", "Packs"),
+        get_packs_list_kb(),
         session,
         "free_packs",
     )
@@ -110,5 +112,37 @@ async def cb_free_follow(callback: CallbackQuery, session: AsyncSession):
         get_back_keyboard("free_main_menu"),
         session,
         "free_follow",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("pack_"))
+async def cb_pack_details(callback: CallbackQuery, session: AsyncSession):
+    data = callback.data
+    if data.startswith("pack_interest_"):
+        pack_id = data.split("_")[-1]
+        user = callback.from_user
+        notify_text = (
+            f"Interés en pack {pack_id} de {user.first_name} "
+            f"(@{user.username or user.id})"
+        )
+        await notify_admins(callback.bot, notify_text)
+        await menu_manager.send_temporary_message(
+            callback.message,
+            BOT_MESSAGES.get("PACK_INTEREST_REPLY"),
+            auto_delete_seconds=8,
+        )
+        await callback.answer()
+        return
+
+    # Handle pack detail display
+    pack_id = data.split("_")[-1]
+    text = BOT_MESSAGES.get(f"PACK_{pack_id}_DETAILS", "Detalles")
+    await menu_manager.update_menu(
+        callback,
+        text,
+        get_pack_detail_kb(pack_id),
+        session,
+        f"pack_{pack_id}",
     )
     await callback.answer()
