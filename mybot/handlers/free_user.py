@@ -4,6 +4,7 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from sqlalchemy.ext.asyncio import AsyncSession # Importar AsyncSession
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from keyboards.subscription_kb import (
     get_subscription_kb,
