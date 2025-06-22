@@ -14,7 +14,6 @@ from utils.keyboard_utils import (
     get_missions_keyboard,
 )
 from keyboards.vip_main_kb import get_vip_main_kb
-from keyboards.vip_game_kb import get_game_menu_kb
 from utils.messages import BOT_MESSAGES
 from utils.message_utils import get_profile_message
 from services.subscription_service import SubscriptionService
@@ -39,7 +38,7 @@ async def vip_menu(message: Message, session: AsyncSession):
         return
     await send_menu(
         message,
-        "Bienvenido al Diván de Diana",
+        BOT_MESSAGES["start_welcome_returning_user"],
         get_vip_main_kb(),
         session,
         "vip_main",
@@ -60,7 +59,7 @@ async def vip_menu_cb(callback: CallbackQuery, session: AsyncSession):
         return
     await update_menu(
         callback,
-        "Bienvenido al Diván de Diana",
+        BOT_MESSAGES["start_welcome_returning_user"],
         get_vip_main_kb(),
         session,
         "vip_main",
@@ -190,9 +189,9 @@ async def vip_game(callback: CallbackQuery, session: AsyncSession):
         return
     await callback.message.edit_text(
         BOT_MESSAGES["start_welcome_returning_user"],
-        reply_markup=get_game_menu_kb(),
+        reply_markup=get_vip_main_kb(),
     )
-    await set_user_menu_state(session, callback.from_user.id, "root")
+    await set_user_menu_state(session, callback.from_user.id, "vip_main")
     await callback.answer()
 
 
