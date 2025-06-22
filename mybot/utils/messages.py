@@ -110,10 +110,18 @@ BOT_MESSAGES = {
         "🎁 *Desbloquear regalo*\n"
         "Activa tu obsequio de bienvenida y descubre los primeros detalles de todo lo que tengo para ti."
     ),
-    "FREE_PACKS_TEXT": (
-        "🎀 *Ver mis packs exclusivos*\n"
-        "Explora mis colecciones de fotos y videos más picantes listas para ti."
+    "PACKS_MENU_TEXT": (
+        "🎀 *Paquetes especiales de Diana* 🎀\n\n"
+        "¿Quieres una probadita de mis momentos más intensos?\n\n"
+        "Estos son sets que puedes comprar directamente, sin suscripción. "
+        "Cada uno incluye fotos y videos explícitos. 🥵\n\n"
+        "🛍️ Elige tu favorito y presiona *“Me interesa”*. Yo me pondré en contacto contigo."
     ),
+    "PACK_1_DETAILS": "💫 *Encanto Inicial – $150 MXN*\n\nFotos y videos perfectos para iniciar tu colección.",
+    "PACK_2_DETAILS": "🔥 *Sensualidad Revelada – $200 MXN*\n\nUn nivel más de pasión en cada imagen.",
+    "PACK_3_DETAILS": "💋 *Pasión Desbordante – $250 MXN*\n\nMis momentos más atrevidos capturados para ti.",
+    "PACK_4_DETAILS": "🔞 *Intimidad Explosiva – $300 MXN*\n\nContenido explícito y sin censura.",
+    "PACK_INTEREST_REPLY": "💌 ¡Gracias! Recibí tu interés. Me pondré en contacto contigo muy pronto. O si no quieres esperar escríbeme directo a mi chat privado en ,,@DianaKinky ",
     "FREE_VIP_EXPLORE_TEXT": (
         "🔐 *Explorar el canal VIP*\n"
         "Aquí comparto el contenido más atrevido y sorpresas solo para miembros. ¿Te unes?"
