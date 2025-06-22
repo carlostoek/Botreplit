@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from utils.user_roles import get_user_role
 from keyboards.admin_main_kb import get_admin_main_kb
 from keyboards.vip_main_kb import get_vip_main_kb
-from keyboards.subscription_kb import get_subscription_kb
+from keyboards.subscription_kb import get_free_main_menu_kb
 from keyboards.setup_kb import (
     get_setup_main_kb, 
     get_setup_channels_kb, 
@@ -92,7 +92,7 @@ class MenuFactory:
                 "🌟 **Bienvenido a los Kinkys**\n\n"
                 "Explora nuestro contenido gratuito y descubre todo lo que tenemos para ti. "
                 "¿Listo para una experiencia única?",
-                get_subscription_kb()
+                get_free_main_menu_kb()
             )
     
     async def _create_setup_menu(
@@ -265,7 +265,7 @@ class MenuFactory:
         elif role == "vip":
             return (text, get_vip_main_kb())
         else: # Default for 'free' or unknown
-            return (text, get_subscription_kb())
+            return (text, get_free_main_menu_kb())
 
     def create_setup_choice_menu(self) -> Tuple[str, InlineKeyboardMarkup]:
         """

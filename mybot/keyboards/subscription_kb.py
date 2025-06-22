@@ -2,16 +2,21 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 from aiogram.types import InlineKeyboardMarkup
 
-def get_subscription_kb() -> InlineKeyboardMarkup:
-    """Return the menu keyboard for free users (main menu)."""
+def get_free_main_menu_kb() -> InlineKeyboardMarkup:
+    """Return the main menu keyboard for free users."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="👀 Ver beneficios", callback_data="free_benefits")
-    builder.button(text="🚫 Ver límites del plan", callback_data="free_limits")
-    builder.button(text="🔓 Contenido gratuito", callback_data="free_content")
-    builder.button(text="🚀 Subir a VIP", callback_data="free_upgrade")
-    builder.button(text="🎮 Mini Juego Kinky", callback_data="free_game")
+    builder.button(text="📌 Sobre mí", callback_data="free_about")
+    builder.button(text="🪞 Qué puedes encontrar aquí", callback_data="free_find")
+    builder.button(text="🎁 Lo que sí puedes ver gratis", callback_data="free_free")
+    builder.button(text="🔒 Lo que te estás perdiendo (contenido VIP)", callback_data="free_vip")
+    builder.button(text="🔥 Sesiones privadas y contenido personalizado", callback_data="free_private")
+    builder.button(text="🎮 Probar el Juego Kinky (versión gratuita)", callback_data="free_game")
     builder.adjust(1)
     return builder.as_markup()
+
+def get_subscription_kb() -> InlineKeyboardMarkup:
+    """Alias for backward compatibility."""
+    return get_free_main_menu_kb()
 
 def get_free_info_kb() -> InlineKeyboardMarkup:
     """Keyboard shown in the information section."""
