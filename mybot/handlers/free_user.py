@@ -5,7 +5,7 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.filters import Command
 from sqlalchemy.ext.asyncio import AsyncSession # Importar AsyncSession
 
-from keyboards.suscripcion_kb import (
+from keyboards.subscription_kb import (
     get_subscription_kb,
     get_free_info_kb,
     get_free_game_kb,
