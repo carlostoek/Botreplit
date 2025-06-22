@@ -9,29 +9,17 @@ from database.models import PendingChannelRequest, BotConfig, User
 from utils.config import CHANNEL_SCHEDULER_INTERVAL, VIP_SCHEDULER_INTERVAL
 from services.config_service import ConfigService
 from services.auction_service import AuctionService
+from services.free_channel_service import FreeChannelService
 
 
 async def run_channel_request_check(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
-    """Process pending channel requests once."""
+    """Process pending channel requests once using the new FreeChannelService."""
     async with session_factory() as session:
-        config = await session.get(BotConfig, 1)
-        wait_minutes = config.free_channel_wait_time_minutes if config else 0
-        threshold = datetime.utcnow() - timedelta(minutes=wait_minutes)
-        stmt = select(PendingChannelRequest).where(
-            PendingChannelRequest.approved == False,
-            PendingChannelRequest.request_timestamp <= threshold,
-        )
-        result = await session.execute(stmt)
-        requests = result.scalars().all()
-        for req in requests:
-            try:
-                await bot.approve_chat_join_request(req.chat_id, req.user_id)
-                await bot.send_message(req.user_id, "Tu solicitud de acceso ha sido aprobada.")
-                await session.delete(req)
-                logging.info("Approved join request %s for %s", req.chat_id, req.user_id)
-            except Exception as e:
-                logging.exception("Failed to approve join request for %s: %s", req.user_id, e)
-        await session.commit()
+        free_service = FreeChannelService(session, bot)
+        processed_count = await free_service.process_pending_requests()
+        
+        if processed_count > 0:
+            logging.info(f"Processed {processed_count} pending channel requests")
 
 
 async def channel_request_scheduler(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
@@ -149,3 +137,30 @@ async def auction_monitor_scheduler(bot: Bot, session_factory: async_sessionmake
         raise
     except Exception:
         logging.exception("Unhandled error in auction monitor scheduler")
+
+
+async def run_free_channel_cleanup(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
+    """Clean up old channel requests periodically."""
+    async with session_factory() as session:
+        free_service = FreeChannelService(session, bot)
+        try:
+            cleaned_count = await free_service.cleanup_old_requests(days_old=30)
+            if cleaned_count > 0:
+                logging.info(f"Cleaned up {cleaned_count} old channel requests")
+        except Exception as e:
+            logging.exception("Error in free channel cleanup: %s", e)
+
+
+async def free_channel_cleanup_scheduler(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
+    """Background task for cleaning up old channel requests."""
+    logging.info("Free channel cleanup scheduler started")
+    interval = 86400  # Run once per day
+    try:
+        while True:
+            await run_free_channel_cleanup(bot, session_factory)
+            await asyncio.sleep(interval)
+    except asyncio.CancelledError:
+        logging.info("Free channel cleanup scheduler cancelled")
+        raise
+    except Exception:
+        logging.exception("Unhandled error in free channel cleanup scheduler")

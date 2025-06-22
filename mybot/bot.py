@@ -17,11 +17,14 @@ from handlers.vip.auction_user import router as auction_user_router
 from handlers.interactive_post import router as interactive_post_router
 from handlers.admin import admin_router
 from handlers.admin.auction_admin import router as auction_admin_router
+
 from handlers import setup as setup_handlers # ¡IMPORTACIÓN CLAVE!
+
+from handlers.free_channel_admin import router as free_channel_admin_router
 
 from utils.config import BOT_TOKEN, VIP_CHANNEL_ID
 from services import channel_request_scheduler, vip_subscription_scheduler
-from services.scheduler import auction_monitor_scheduler
+from services.scheduler import auction_monitor_scheduler, free_channel_cleanup_scheduler
 
 
 async def main() -> None:
@@ -66,6 +69,7 @@ async def main() -> None:
     dp.include_router(start.router)
     dp.include_router(admin_router)
     dp.include_router(auction_admin_router)
+    dp.include_router(free_channel_admin_router)  # Nuevo router para canal gratuito
     dp.include_router(vip.router)
     dp.include_router(gamification.router)
     dp.include_router(auction_user_router)
@@ -75,9 +79,11 @@ async def main() -> None:
     dp.include_router(free_user.router)
     dp.include_router(channel_access_router)
 
+    # Tareas programadas
     pending_task = asyncio.create_task(channel_request_scheduler(bot, Session))
     vip_task = asyncio.create_task(vip_subscription_scheduler(bot, Session))
     auction_task = asyncio.create_task(auction_monitor_scheduler(bot, Session))
+    cleanup_task = asyncio.create_task(free_channel_cleanup_scheduler(bot, Session))
 
     try:
         logging.info("Bot is starting polling...")
@@ -86,7 +92,11 @@ async def main() -> None:
         pending_task.cancel()
         vip_task.cancel()
         auction_task.cancel()
-        await asyncio.gather(pending_task, vip_task, auction_task, return_exceptions=True)
+        cleanup_task.cancel()
+        await asyncio.gather(
+            pending_task, vip_task, auction_task, cleanup_task, 
+            return_exceptions=True
+        )
 
 
 if __name__ == "__main__":

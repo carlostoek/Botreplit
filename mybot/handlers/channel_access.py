@@ -6,40 +6,47 @@ from datetime import datetime
 
 from database.models import PendingChannelRequest, BotConfig
 from services.config_service import ConfigService
+from services.free_channel_service import FreeChannelService
 
 router = Router()
 
 @router.chat_join_request()
 async def handle_join_request(event: ChatJoinRequest, bot: Bot, session: AsyncSession):
-    free_id = await ConfigService(session).get_free_channel_id()
-    if event.chat.id != free_id:
-        return
-    req = PendingChannelRequest(
-        user_id=event.from_user.id,
-        chat_id=event.chat.id,
-        request_timestamp=datetime.utcnow(),
-    )
-    session.add(req)
-    await session.commit()
-
-    config = await session.get(BotConfig, 1)
-    wait_minutes = config.free_channel_wait_time_minutes if config else 0
-    await bot.send_message(
-        event.from_user.id,
-        f"Solicitud recibida. Ser\u00e1 aprobada en aproximadamente {wait_minutes} minutos."
-    )
-
+    """
+    Manejar solicitudes de unión al canal gratuito.
+    Registra la solicitud para aprobación automática posterior.
+    """
+    free_service = FreeChannelService(session, bot)
+    await free_service.handle_join_request(event)
 
 @router.chat_member()
 async def handle_chat_member(update: ChatMemberUpdated, bot: Bot, session: AsyncSession):
-    free_id = await ConfigService(session).get_free_channel_id()
-    if update.chat.id != free_id:
+    """
+    Manejar cambios de membresía en el canal.
+    Limpia solicitudes pendientes cuando el usuario se une o sale.
+    """
+    free_service = FreeChannelService(session, bot)
+    free_id = await free_service.get_free_channel_id()
+    
+    if not free_id or update.chat.id != free_id:
         return
 
     user_id = update.from_user.id
     status = update.new_chat_member.status
+    
     if status in {"member", "administrator", "creator"}:
-        await bot.send_message(user_id, "Tu acceso al canal ha sido confirmado.")
+        # Usuario se unió al canal
+        try:
+            await bot.send_message(
+                user_id, 
+                "🎉 **¡Bienvenido al Canal Gratuito!**\n\n"
+                "Tu acceso ha sido confirmado exitosamente.\n"
+                "¡Disfruta de todo el contenido gratuito disponible!"
+            )
+        except Exception:
+            pass  # Usuario podría tener mensajes privados deshabilitados
+        
+        # Limpiar solicitud pendiente
         stmt = select(PendingChannelRequest).where(
             PendingChannelRequest.user_id == user_id,
             PendingChannelRequest.chat_id == update.chat.id,
@@ -49,7 +56,9 @@ async def handle_chat_member(update: ChatMemberUpdated, bot: Bot, session: Async
         if req:
             await session.delete(req)
             await session.commit()
+            
     elif status in {"kicked", "left"}:
+        # Usuario salió o fue expulsado del canal
         stmt = select(PendingChannelRequest).where(
             PendingChannelRequest.user_id == user_id,
             PendingChannelRequest.chat_id == update.chat.id,
