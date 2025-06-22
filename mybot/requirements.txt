@@ -3,3 +3,4 @@ SQLAlchemy
 aiosqlite
 APScheduler
 python-dotenv
+asyncpg
