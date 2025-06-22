@@ -92,6 +92,8 @@ BOT_MESSAGES = {
     # Notificaciones de gamificación
     "challenge_completed": "🎯 ¡Desafío {challenge_type} completado! +{points} puntos",
     "reaction_registered": "👍 ¡Reacción registrada!",
+    "reaction_registered_points": "👍 ¡Reacción registrada! Ganaste {points} puntos.",
+    "reaction_already": "Ya reaccionaste a este mensaje.",
     # --- Administración de Recompensas ---
     "enter_reward_name": "Ingresa el nombre de la recompensa:",
     "enter_reward_points": "¿Cuántos puntos se requieren?",

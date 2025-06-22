@@ -10,6 +10,7 @@ class ConfigService:
     VIP_CHANNEL_KEY = "VIP_CHANNEL_ID"
     FREE_CHANNEL_KEY = "FREE_CHANNEL_ID"
     REACTION_BUTTONS_KEY = "reaction_buttons"
+    REACTION_POINTS_KEY = "reaction_points"
     VIP_REACTIONS_KEY = "vip_message_reactions"
 
     def __init__(self, session: AsyncSession):
@@ -74,4 +75,22 @@ class ConfigService:
     async def set_vip_reactions(self, reactions: list[str]) -> ConfigEntry:
         """Store the default VIP message reactions as a semicolon string."""
         return await self.set_value(self.VIP_REACTIONS_KEY, ";".join(reactions))
+
+    async def get_reaction_points(self) -> list[float]:
+        """Return configured points for each reaction button."""
+        value = await self.get_value(self.REACTION_POINTS_KEY)
+        if value:
+            try:
+                points = [float(p) for p in value.split(";") if p.strip()]
+                return points[:10]
+            except ValueError:
+                pass
+        # Default: 0.5 points for each configured reaction button
+        buttons = await self.get_reaction_buttons()
+        return [0.5] * len(buttons)
+
+    async def set_reaction_points(self, points: list[float]) -> ConfigEntry:
+        """Store reaction points as a semicolon separated list."""
+        text = ";".join(str(p) for p in points)
+        return await self.set_value(self.REACTION_POINTS_KEY, text)
 
