@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
@@ -44,12 +45,18 @@ async def cb_free_main_menu(callback: CallbackQuery, session: AsyncSession):
 
 @router.callback_query(F.data == "free_gift")
 async def cb_free_gift(callback: CallbackQuery, session: AsyncSession):
-    await menu_manager.update_menu(
-        callback,
-        BOT_MESSAGES.get("FREE_GIFT_TEXT", "Desbloquear regalo"),
-        get_back_keyboard("free_main_menu"),
-        session,
-        "free_gift",
+    message = callback.message
+    await message.answer(
+        "🎁 Antes de dejarte pasar... ¿puedes completar esta prueba rápida?\n\n📌 Sígueme en mis redes y desbloquea tu regalo."
+    )
+    await message.answer("📡 Verificando Instagram...")
+    await asyncio.sleep(2)
+    await message.answer("🔄 Reintentando conexión...")
+    await asyncio.sleep(2)
+    await message.answer("✅ ¡Perfecto! Instagram verificado.")
+    await asyncio.sleep(1)
+    await message.answer(
+        "✨ ¡Regalo desbloqueado!\nAquí tienes una sorpresa para ti solo: [contenido de muestra o enlace al pack gratuito]"
     )
     await callback.answer()
 
