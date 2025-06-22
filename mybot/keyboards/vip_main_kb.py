@@ -1,10 +1,14 @@
-from aiogram.utils.keyboard import InlineKeyboardBuilder
+"""Keyboard helpers for VIP menus."""
+
+from utils.keyboard_utils import get_main_menu_keyboard
 
 
 def get_vip_main_kb():
-    """Return the root VIP menu keyboard."""
-    builder = InlineKeyboardBuilder()
-    builder.button(text="📄 Mi Suscripción", callback_data="vip_subscription")
-    builder.button(text="🎮 Juego Kinky", callback_data="vip_game")
-    builder.adjust(1)
-    return builder.as_markup()
+    """Return the default VIP menu keyboard.
+
+    This mirrors the menu previously shown under "Juego Kinky" so that
+    VIP users immediately see all options like Mi Suscripción, Perfil y
+    Misiones al entrar.
+    """
+
+    return get_main_menu_keyboard()
