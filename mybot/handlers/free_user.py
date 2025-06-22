@@ -58,7 +58,9 @@ async def cb_free_gift(callback: CallbackQuery, session: AsyncSession):
     await message.answer("✅ ¡Perfecto! Instagram verificado.")
     await asyncio.sleep(1)
     await message.answer(
-        "✨ ¡Regalo desbloqueado!\nAquí tienes una sorpresa para ti solo: [contenido de muestra o enlace al pack gratuito]"
+
+        "✨ ¡Regalo desbloqueado!\nAquí tienes una sorpresa para ti solo: [contenido de muestra o enlace al pack gratuito]",
+        reply_markup=get_back_keyboard("free_main_menu"),
     )
     await callback.answer()
 
