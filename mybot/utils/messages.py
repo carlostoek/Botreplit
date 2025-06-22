@@ -117,10 +117,53 @@ BOT_MESSAGES = {
         "Cada uno incluye fotos y videos explícitos. 🥵\n\n"
         "🛍️ Elige tu favorito y presiona *“Me interesa”*. Yo me pondré en contacto contigo."
     ),
-    "PACK_1_DETAILS": "💫 *Encanto Inicial – $150 MXN*\n\nFotos y videos perfectos para iniciar tu colección.",
-    "PACK_2_DETAILS": "🔥 *Sensualidad Revelada – $200 MXN*\n\nUn nivel más de pasión en cada imagen.",
-    "PACK_3_DETAILS": "💋 *Pasión Desbordante – $250 MXN*\n\nMis momentos más atrevidos capturados para ti.",
-    "PACK_4_DETAILS": "🔞 *Intimidad Explosiva – $300 MXN*\n\nContenido explícito y sin censura.",
+    "PACK_1_DETAILS": (
+        "💫 *Encanto Inicial*\n"
+        "Una primera mirada. Una chispa.\n"
+        "Aquí comienza el juego entre tú y yo…\n\n"
+        "Este set es tu puerta de entrada a mi mundo:\n"
+        "📹 1 video íntimo donde mis dedos exploran lentamente mientras mis labios y mirada te envuelven.\n"
+        "📸 10 fotos donde apenas cubro lo necesario… lencería suave, piel desnuda, miradas insinuantes.\n\n"
+        "Perfecto si quieres conocerme de una forma dulce, coqueta y provocadora.\n\n"
+        "*150 MXN (10 USD)*"
+    ),
+    "PACK_2_DETAILS": (
+        "🔥 *Sensualidad Revelada*\n"
+        "Te muestro más. Te invito a quedarte…\n\n"
+        "Este set revela lo que solo pocos han visto:\n"
+        "📹 2 videos donde me toco sin censura, jugando con mi cuerpo mientras mi rostro refleja cada sensación.\n"
+        "📸 10 fotos tan provocadoras que te harán dudar si mirar una sola vez será suficiente.\n\n"
+        "Es mi manera de decirte:\n"
+        "“No es lo que ves... es cómo te lo muestro.”\n\n"
+        "*200 MXN (14 USD)*"
+    ),
+    "PACK_3_DETAILS": (
+        "💋 *Pasión Desbordante*\n"
+        "Aquí ya no hay timidez. Solo deseo.\n\n"
+        "Este set está hecho para quienes quieren ver *todo* lo que puedo provocar:\n"
+        "📹 3 videos:\n"
+        "1. En lencería de alto voltaje\n"
+        "2. Vestida, pero seduciéndote con juegos visuales\n"
+        "3. Jugando con un juguetito que me hace gemir suave… y fuerte.\n"
+        "📸 15 fotos íntimas y provocativas, capturadas en el punto exacto entre arte y placer.\n\n"
+        "Un set para perderte y volver a verme... muchas veces.\n\n"
+        "*250 MXN (17 USD)*"
+    ),
+    "PACK_4_DETAILS": (
+        "🔞 *Intimidad Explosiva*\n\n"
+        "Esto no es un set. Es una confesión explícita…\n\n"
+        "Mi lado más sucio, más real, más entregado:\n"
+        "📹 5 videos:\n"
+        "- Me masturbo hasta acabar... sin cortes.\n"
+        "- Uso dildos, me abro, gimo, me muerdo los labios.\n"
+        "- Me desvisto lentamente hasta estar completamente desnuda.\n"
+        "- Juego con mis juguetes favoritos.\n"
+        "- Y uno… donde estoy montando, moviéndome como si estuvieras debajo. Sin censura.\n\n"
+        "📸 15 fotos extra, como regalo. Fotos que no circulan por ningún otro lado.\n\n"
+        "Este es el set que convierte la fantasía en algo real.\n"
+        "Lo más explícito. Lo más mío. Lo más tuyo.\n\n"
+        "*300 MXN (20 USD)*"
+    ),
     "PACK_INTEREST_REPLY": "💌 ¡Gracias! Recibí tu interés. Me pondré en contacto contigo muy pronto. O si no quieres esperar escríbeme directo a mi chat privado en ,,@DianaKinky ",
     "FREE_VIP_EXPLORE_TEXT": (
         "🔐 *Bienvenido al Diván de Diana* 🔐\n\n"
