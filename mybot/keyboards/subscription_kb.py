@@ -5,9 +5,11 @@ from aiogram.types import InlineKeyboardMarkup
 def get_subscription_kb() -> InlineKeyboardMarkup:
     """Return the menu keyboard for free users (main menu)."""
     builder = InlineKeyboardBuilder()
-    builder.button(text="ℹ️ Información", callback_data="free_info")
-    builder.button(text="🧩 Mini Juego Kinky", callback_data="free_game")
-    builder.button(text="🔗 Canal Gratuito", url="https://t.me/TuCanalGratuito") # Considera añadir un enlace real aquí
+    builder.button(text="👀 Ver beneficios", callback_data="free_benefits")
+    builder.button(text="🚫 Ver límites del plan", callback_data="free_limits")
+    builder.button(text="🔓 Contenido gratuito", callback_data="free_content")
+    builder.button(text="🚀 Subir a VIP", callback_data="free_upgrade")
+    builder.button(text="🎮 Mini Juego Kinky", callback_data="free_game")
     builder.adjust(1)
     return builder.as_markup()
 

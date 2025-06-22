@@ -105,6 +105,12 @@ BOT_MESSAGES = {
     "level_created": "✅ Nivel creado correctamente.",
     "level_updated": "✅ Nivel actualizado.",
     "level_deleted": "❌ Nivel eliminado.",
+    "FREE_MENU_TEXT": "🌟 *Bienvenido*\nEscoge una opción para conocer las ventajas del bot.",
+    "FREE_BENEFITS_TEXT": "👀 *Beneficios VIP*\nAccede a contenido exclusivo y experiencias completas.",
+    "FREE_LIMITS_TEXT": "🚫 *Límites del plan gratuito*\nAlgunas funciones están restringidas para usuarios VIP.",
+    "FREE_CONTENT_TEXT": "🔓 *Contenido gratuito disponible*\nÚnete a nuestro canal abierto y participa en eventos ocasionales.",
+    "FREE_UPGRADE_TEXT": "🚀 *Sube a VIP*\nAdquiere la suscripción para desbloquear todo el contenido.",
+    "FREE_GAME_TEXT": "🎮 *Mini Juego Kinky*\nPróximamente podrás jugar desde aquí.",
 }
 
 # Textos descriptivos para las insignias disponibles en el sistema.
