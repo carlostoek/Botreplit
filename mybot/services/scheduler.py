@@ -10,6 +10,7 @@ from utils.config import CHANNEL_SCHEDULER_INTERVAL, VIP_SCHEDULER_INTERVAL
 from services.config_service import ConfigService
 from services.auction_service import AuctionService
 from services.free_channel_service import FreeChannelService
+from services.subscription_service import SubscriptionService
 
 
 async def run_channel_request_check(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
@@ -92,6 +93,33 @@ async def run_vip_subscription_check(bot: Bot, session_factory: async_sessionmak
         await session.commit()
 
 
+async def run_vip_membership_check(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
+    """Ensure users in the VIP channel have the correct role."""
+    async with session_factory() as session:
+        vip_channel_id = await ConfigService(session).get_vip_channel_id()
+        if not vip_channel_id:
+            return
+        stmt = select(User).where(User.role != "vip")
+        result = await session.execute(stmt)
+        users = result.scalars().all()
+        updated = 0
+        for user in users:
+            try:
+                member = await bot.get_chat_member(vip_channel_id, user.id)
+                if member.status in {"member", "administrator", "creator"}:
+                    user.role = "vip"
+                    sub_service = SubscriptionService(session)
+                    sub = await sub_service.get_subscription(user.id)
+                    if not sub:
+                        await sub_service.create_subscription(user.id, None)
+                    updated += 1
+            except Exception:
+                continue
+        if updated:
+            await session.commit()
+            logging.info("Synced %s users to VIP role via channel", updated)
+
+
 async def vip_subscription_scheduler(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
     """Background task checking VIP subscriptions."""
     logging.info("VIP subscription scheduler started")
@@ -110,6 +138,26 @@ async def vip_subscription_scheduler(bot: Bot, session_factory: async_sessionmak
         raise
     except Exception:
         logging.exception("Unhandled error in VIP subscription scheduler")
+
+
+async def vip_membership_scheduler(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
+    """Background task syncing VIP roles based on channel membership."""
+    logging.info("VIP membership scheduler started")
+    interval = VIP_SCHEDULER_INTERVAL
+    try:
+        while True:
+            await run_vip_membership_check(bot, session_factory)
+            async with session_factory() as session:
+                config_service = ConfigService(session)
+                value = await config_service.get_value("vip_scheduler_interval")
+                if value and value.isdigit():
+                    interval = int(value)
+            await asyncio.sleep(interval)
+    except asyncio.CancelledError:
+        logging.info("VIP membership scheduler cancelled")
+        raise
+    except Exception:
+        logging.exception("Unhandled error in VIP membership scheduler")
 
 
 async def run_auction_monitor_check(bot: Bot, session_factory: async_sessionmaker[AsyncSession]):
