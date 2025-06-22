@@ -1,48 +1,33 @@
-from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
-from aiogram.filters import Command
+# mybot/keyboards/suscripcion_kb.py
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardMarkup
 
-from keyboards.subscription_kb import (
-    get_subscription_kb,
-    get_free_info_kb,
-    get_free_game_kb,
-)
-from utils.user_roles import is_admin, is_vip
-
-router = Router()
-
-
-@router.message(Command("subscribe"))
-async def subscription_menu(message: Message):
-    if is_admin(message.from_user.id) or await is_vip(message.bot, message.from_user.id):
-        return
-    await message.answer(
-        "Bienvenido a los kinkys",
-        reply_markup=get_subscription_kb(),
-    )
+def get_subscription_kb() -> InlineKeyboardMarkup:
+    """Return the menu keyboard for free users (main menu)."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="ℹ️ Información", callback_data="free_info")
+    builder.button(text="🧩 Mini Juego Kinky", callback_data="free_game")
+    builder.button(text="👑 Obtener VIP", callback_data="free_get_vip") # Nuevo botón para subir a VIP
+    builder.adjust(1)
+    return builder.as_markup()
 
 
-@router.callback_query(F.data == "free_info")
-async def show_info(callback: CallbackQuery):
-    """Display the info section for free users."""
-    await callback.answer()
-    await callback.message.edit_text(
-        "Información del canal gratuito.",
-        reply_markup=get_free_info_kb(),
-    )
+def get_free_info_kb() -> InlineKeyboardMarkup:
+    """Keyboard shown in the information section."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="❓ Preguntas Frecuentes (FAQ)", callback_data="free_info_faq") # Callback más descriptivo
+    builder.button(text="📢 Novedades y Anuncios", callback_data="free_info_news") # Callback más descriptivo
+    builder.button(text="🔙 Volver al Menú Principal", callback_data="free_main_menu") # Callback para volver al menú principal gratuito
+    builder.adjust(1)
+    return builder.as_markup()
 
 
-@router.callback_query(F.data == "free_game")
-async def free_game(callback: CallbackQuery):
-    """Placeholder mini game for free users."""
-    await callback.message.edit_text(
-        "Mini Juego Kinky (versión gratuita)",
-        reply_markup=get_free_game_kb(),
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data.in_("free_info_test free_game_test".split()))
-async def dummy_button(callback: CallbackQuery):
-    """Handle placeholder buttons in the free user menu."""
-    await callback.answer("Botón de prueba")
+def get_free_game_kb() -> InlineKeyboardMarkup:
+    """Keyboard shown in the free mini game section."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="▶️ Iniciar Juego", callback_data="free_game_start") # Callback para iniciar el juego
+    builder.button(text="🏆 Ver Puntuaciones", callback_data="free_game_scores") # Callback para ver puntuaciones
+    builder.button(text="🔙 Volver al Menú Principal", callback_data="free_main_menu") # Callback para volver al menú principal gratuito
+    builder.adjust(1)
+    return builder.as_markup()
+    
