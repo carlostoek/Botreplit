@@ -14,6 +14,14 @@ def get_free_main_menu_kb() -> InlineKeyboardMarkup:
     builder.adjust(1)
     return builder.as_markup()
 
+def get_vip_explore_kb() -> InlineKeyboardMarkup:
+    """Keyboard shown in the free VIP explore section."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="Me interesa 🔥", callback_data="vip_explore_interest")
+    builder.button(text="🔙 Regresar", callback_data="free_main_menu")
+    builder.adjust(1)
+    return builder.as_markup()
+
 def get_subscription_kb() -> InlineKeyboardMarkup:
     """Alias for backward compatibility."""
     return get_free_main_menu_kb()

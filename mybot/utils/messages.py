@@ -123,8 +123,17 @@ BOT_MESSAGES = {
     "PACK_4_DETAILS": "🔞 *Intimidad Explosiva – $300 MXN*\n\nContenido explícito y sin censura.",
     "PACK_INTEREST_REPLY": "💌 ¡Gracias! Recibí tu interés. Me pondré en contacto contigo muy pronto. O si no quieres esperar escríbeme directo a mi chat privado en ,,@DianaKinky ",
     "FREE_VIP_EXPLORE_TEXT": (
-        "🔐 *Explorar el canal VIP*\n"
-        "Aquí comparto el contenido más atrevido y sorpresas solo para miembros. ¿Te unes?"
+        "🔐 *Bienvenido al Diván de Diana* 🔐\n\n"
+        "¿Te atreves a entrar a mi universo sin censura?\n\n"
+        "✨ Más de 2000 archivos privados\n"
+        "🎬 Videos explícitos sin censura\n"
+        "🎁 Descuentos en contenido personalizado\n"
+        "👀 Acceso exclusivo a mis historias diarias\n\n"
+        "📌 Precio: *$350 MXN / mes*"
+    ),
+    "VIP_INTEREST_REPLY": (
+        "💌 ¡Gracias! Recibí tu interés. Me pondré en contacto contigo muy pronto. "
+        "O si no quieres esperar escríbeme directo a mi chat privado en ,,@DianaKinky "
     ),
     "FREE_CUSTOM_TEXT": (
         "💌 *Quiero contenido personalizado*\n"
