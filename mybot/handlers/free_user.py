@@ -42,62 +42,50 @@ async def cb_free_main_menu(callback: CallbackQuery, session: AsyncSession):
     await callback.answer()
 
 
-@router.callback_query(F.data == "free_about")
-async def cb_free_about(callback: CallbackQuery, session: AsyncSession):
+@router.callback_query(F.data == "free_gift")
+async def cb_free_gift(callback: CallbackQuery, session: AsyncSession):
     await menu_manager.update_menu(
         callback,
-        BOT_MESSAGES.get("FREE_ABOUT_TEXT", "Sobre mí"),
+        BOT_MESSAGES.get("FREE_GIFT_TEXT", "Desbloquear regalo"),
         get_back_keyboard("free_main_menu"),
         session,
-        "free_about",
+        "free_gift",
     )
     await callback.answer()
 
 
-@router.callback_query(F.data == "free_find")
-async def cb_free_find(callback: CallbackQuery, session: AsyncSession):
+@router.callback_query(F.data == "free_packs")
+async def cb_free_packs(callback: CallbackQuery, session: AsyncSession):
     await menu_manager.update_menu(
         callback,
-        BOT_MESSAGES.get("FREE_FIND_TEXT", "Información"),
+        BOT_MESSAGES.get("FREE_PACKS_TEXT", "Packs exclusivos"),
         get_back_keyboard("free_main_menu"),
         session,
-        "free_find",
+        "free_packs",
     )
     await callback.answer()
 
 
-@router.callback_query(F.data == "free_free")
-async def cb_free_free(callback: CallbackQuery, session: AsyncSession):
+@router.callback_query(F.data == "free_vip_explore")
+async def cb_free_vip_explore(callback: CallbackQuery, session: AsyncSession):
     await menu_manager.update_menu(
         callback,
-        BOT_MESSAGES.get("FREE_FREE_TEXT", "Contenido gratuito"),
+        BOT_MESSAGES.get("FREE_VIP_EXPLORE_TEXT", "Canal VIP"),
         get_back_keyboard("free_main_menu"),
         session,
-        "free_free",
+        "free_vip_explore",
     )
     await callback.answer()
 
 
-@router.callback_query(F.data == "free_vip")
-async def cb_free_vip(callback: CallbackQuery, session: AsyncSession):
+@router.callback_query(F.data == "free_custom")
+async def cb_free_custom(callback: CallbackQuery, session: AsyncSession):
     await menu_manager.update_menu(
         callback,
-        BOT_MESSAGES.get("FREE_VIP_TEXT", "Contenido VIP"),
+        BOT_MESSAGES.get("FREE_CUSTOM_TEXT", "Contenido personalizado"),
         get_back_keyboard("free_main_menu"),
         session,
-        "free_vip",
-    )
-    await callback.answer()
-
-
-@router.callback_query(F.data == "free_private")
-async def cb_free_private(callback: CallbackQuery, session: AsyncSession):
-    await menu_manager.update_menu(
-        callback,
-        BOT_MESSAGES.get("FREE_PRIVATE_TEXT", "Sesiones privadas"),
-        get_back_keyboard("free_main_menu"),
-        session,
-        "free_private",
+        "free_custom",
     )
     await callback.answer()
 
@@ -110,5 +98,17 @@ async def cb_free_game(callback: CallbackQuery, session: AsyncSession):
         get_back_keyboard("free_main_menu"),
         session,
         "free_game",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data == "free_follow")
+async def cb_free_follow(callback: CallbackQuery, session: AsyncSession):
+    await menu_manager.update_menu(
+        callback,
+        BOT_MESSAGES.get("FREE_FOLLOW_TEXT", "Dónde seguirme"),
+        get_back_keyboard("free_main_menu"),
+        session,
+        "free_follow",
     )
     await callback.answer()
