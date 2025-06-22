@@ -105,12 +105,34 @@ BOT_MESSAGES = {
     "level_created": "✅ Nivel creado correctamente.",
     "level_updated": "✅ Nivel actualizado.",
     "level_deleted": "❌ Nivel eliminado.",
-    "FREE_MENU_TEXT": "🌟 *Bienvenido*\nEscoge una opción para conocer las ventajas del bot.",
-    "FREE_BENEFITS_TEXT": "👀 *Beneficios VIP*\nAccede a contenido exclusivo y experiencias completas.",
-    "FREE_LIMITS_TEXT": "🚫 *Límites del plan gratuito*\nAlgunas funciones están restringidas para usuarios VIP.",
-    "FREE_CONTENT_TEXT": "🔓 *Contenido gratuito disponible*\nÚnete a nuestro canal abierto y participa en eventos ocasionales.",
-    "FREE_UPGRADE_TEXT": "🚀 *Sube a VIP*\nAdquiere la suscripción para desbloquear todo el contenido.",
-    "FREE_GAME_TEXT": "🎮 *Mini Juego Kinky*\nPróximamente podrás jugar desde aquí.",
+    "FREE_MENU_TEXT": "✨ *Bienvenid@ a mi espacio gratuito*\n\nElige y descubre un poco de mi mundo...",
+    "FREE_ABOUT_TEXT": (
+        "📌 *Sobre mí*\n"
+        "Soy Diana, aunque cuando la noche se enciende me conocen como *Señorita Kinky*. "
+        "Te invito a un recorrido sensual y divertido. Esto es solo la entrada..."
+    ),
+    "FREE_FIND_TEXT": (
+        "🪞 *Qué puedes encontrar aquí*\n"
+        "Retos, consejos y un vistazo a mi universo más travieso. Todo pensado para que quieras más."
+    ),
+    "FREE_FREE_TEXT": (
+        "🎁 *Lo que sí puedes ver gratis*\n"
+        "Acceso a mi canal abierto y algunos eventos especiales. Una probadita que enciende la curiosidad."
+    ),
+    "FREE_VIP_TEXT": (
+        "🔒 *Lo que te estás perdiendo (contenido VIP)*\n"
+        "Fotos y videos exclusivos, juegos completos y mi atención más personal. "
+        "Ser VIP es vivir la experiencia completa."
+    ),
+    "FREE_PRIVATE_TEXT": (
+        "🔥 *Sesiones privadas y contenido personalizado*\n"
+        "Reserva un encuentro íntimo conmigo o solicita tu video a medida. "
+        "Tus fantasías pueden hacerse realidad."
+    ),
+    "FREE_GAME_TEXT": (
+        "🎮 *Juego Kinky (versión gratuita)*\n"
+        "Disfruta de un adelanto de la diversión. La versión completa te espera en el VIP."
+    ),
 }
 
 # Textos descriptivos para las insignias disponibles en el sistema.

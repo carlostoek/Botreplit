@@ -6,7 +6,7 @@ from database.models import set_user_menu_state
 from utils.user_roles import get_user_role
 from keyboards.admin_main_kb import get_admin_main_kb
 from keyboards.vip_main_kb import get_vip_main_kb
-from keyboards.subscription_kb import get_subscription_kb
+from keyboards.subscription_kb import get_free_main_menu_kb
 
 
 def _menu_details(role: str):
@@ -15,7 +15,7 @@ def _menu_details(role: str):
         return "Panel de Administración", get_admin_main_kb(), "admin_main"
     if role == "vip":
         return "Bienvenido al Diván de Diana", get_vip_main_kb(), "vip_main"
-    return "Bienvenido a los Kinkys", get_subscription_kb(), "free_main"
+    return "Bienvenido a los Kinkys", get_free_main_menu_kb(), "free_main"
 
 # Cache to store the latest menu message for each user
 MENU_CACHE: dict[int, tuple[int, int]] = {}
