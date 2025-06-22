@@ -45,7 +45,7 @@ async def prompt_reaction_buttons(callback: CallbackQuery, session: AsyncSession
         "Envía el emoji para la primera reacción:",
         reply_markup=get_back_keyboard("admin_config"),
     )
-    await state.update_data(reactions=[])
+    await state.update_data(reactions=[], reaction_points=[])
     await state.set_state(AdminConfigStates.waiting_for_reaction_buttons)
     await callback.answer()
 
@@ -69,6 +69,7 @@ async def set_reaction_buttons(message: Message, state: FSMContext, session: Asy
         return
     data = await state.get_data()
     reactions = data.get("reactions", [])
+    points = data.get("reaction_points", [])
     if len(reactions) >= 10:
         await message.answer(
             "Se alcanzó el número máximo de reacciones (10).",
@@ -76,12 +77,31 @@ async def set_reaction_buttons(message: Message, state: FSMContext, session: Asy
         )
         return
     reactions.append(message.text.strip())
-    await state.update_data(reactions=reactions)
+    await state.update_data(reactions=reactions, reaction_points=points)
+    await message.answer("Ingresa los puntos para esta reacción:")
+    await state.set_state(AdminConfigStates.waiting_for_reaction_points)
+
+
+@router.message(AdminConfigStates.waiting_for_reaction_points)
+async def set_reaction_points_value(message: Message, state: FSMContext, session: AsyncSession):
+    if not is_admin(message.from_user.id):
+        return
+    try:
+        value = float(message.text.strip())
+    except ValueError:
+        await message.answer("Ingresa un número válido para los puntos:")
+        return
+    data = await state.get_data()
+    points = data.get("reaction_points", [])
+    points.append(value)
+    await state.update_data(reaction_points=points)
+    reactions = data.get("reactions", [])
     if len(reactions) >= 10:
-        text = f"Se agregó {message.text.strip()}. Máximo alcanzado."
+        text = "Máximo de reacciones alcanzado."
     else:
-        text = f"Se agregó {message.text.strip()}. Envía otro emoji o presiona Aceptar."
+        text = "Reacción registrada. Envía otro emoji o presiona Aceptar."
     await message.answer(text, reply_markup=get_reaction_confirm_kb())
+    await state.set_state(AdminConfigStates.waiting_for_reaction_buttons)
 
 
 @router.message(AdminConfigStates.waiting_for_vip_reactions)
@@ -105,17 +125,23 @@ async def set_vip_reactions(message: Message, state: FSMContext, session: AsyncS
     await message.answer(text, reply_markup=get_reaction_confirm_kb())
 
 
-@router.callback_query(AdminConfigStates.waiting_for_reaction_buttons, F.data == "save_reactions")
+@router.callback_query(
+    (AdminConfigStates.waiting_for_reaction_buttons | AdminConfigStates.waiting_for_reaction_points),
+    F.data == "save_reactions",
+)
 async def save_reaction_buttons_callback(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
     data = await state.get_data()
     reactions = data.get("reactions", [])
+    points = data.get("reaction_points", [])
     if not reactions:
         await callback.answer("Debes ingresar al menos una reacción.", show_alert=True)
         return
     service = ConfigService(session)
     await service.set_value("reaction_buttons", ";".join(reactions))
+    if points:
+        await service.set_reaction_points(points)
     await callback.message.edit_text(
         "Botones de reacción actualizados.", reply_markup=get_admin_config_kb()
     )

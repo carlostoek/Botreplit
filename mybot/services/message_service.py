@@ -4,6 +4,7 @@ from aiogram import Bot
 from aiogram.types import Message, ReactionTypeEmoji
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from .config_service import ConfigService
 from database.models import ButtonReaction
@@ -66,7 +67,15 @@ class MessageService:
 
     async def register_reaction(
         self, user_id: int, message_id: int, reaction_type: str
-    ) -> ButtonReaction:
+    ) -> ButtonReaction | None:
+        stmt = select(ButtonReaction).where(
+            ButtonReaction.message_id == message_id,
+            ButtonReaction.user_id == user_id,
+        )
+        result = await self.session.execute(stmt)
+        if result.scalar():
+            return None
+
         reaction = ButtonReaction(
             message_id=message_id,
             user_id=user_id,
