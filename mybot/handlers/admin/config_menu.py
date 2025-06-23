@@ -11,6 +11,7 @@ from keyboards.admin_config_kb import (
     get_scheduler_config_kb,
     get_channel_type_kb,
     get_config_done_kb,
+    get_reaction_confirm_kb,
 )
 from utils.keyboard_utils import get_back_keyboard
 from services.config_service import ConfigService
@@ -128,10 +129,8 @@ async def set_vip_reactions(message: Message, state: FSMContext, session: AsyncS
 
 
 @router.callback_query(
-    StateFilter(
-        AdminConfigStates.waiting_for_reaction_buttons,
-        AdminConfigStates.waiting_for_reaction_points,
-    ),
+    (AdminConfigStates.waiting_for_reaction_buttons | AdminConfigStates.waiting_for_reaction_points),
+
     F.data == "save_reactions",
 )
 async def save_reaction_buttons_callback(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
@@ -144,7 +143,9 @@ async def save_reaction_buttons_callback(callback: CallbackQuery, state: FSMCont
         await callback.answer("Debes ingresar al menos una reacción.", show_alert=True)
         return
     service = ConfigService(session)
-    await service.set_value("reaction_buttons", ";".join(reactions))
+
+    await service.set_reaction_buttons(reactions)
+
     if points:
         await service.set_reaction_points(points)
     await callback.message.edit_text(

@@ -64,6 +64,10 @@ class ConfigService:
 
         return DEFAULT_REACTION_BUTTONS
 
+    async def set_reaction_buttons(self, buttons: list[str]) -> ConfigEntry:
+        """Store custom reaction button texts."""
+        return await self.set_value(self.REACTION_BUTTONS_KEY, ";".join(buttons))
+
     async def get_vip_reactions(self) -> list[str]:
         """Return the list of default VIP message reactions."""
         value = await self.get_value(self.VIP_REACTIONS_KEY)
