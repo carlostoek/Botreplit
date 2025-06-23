@@ -45,4 +45,8 @@ async def handle_interactive_post_callback(
     points = points_list[idx] if idx < len(points_list) else 0.0
     await PointService(session).add_points(callback.from_user.id, points, bot=bot)
     await callback.answer(BOT_MESSAGES["reaction_registered_points"].format(points=points))
+    await bot.send_message(
+        callback.from_user.id,
+        BOT_MESSAGES["reaction_registered_points"].format(points=points),
+    )
 
