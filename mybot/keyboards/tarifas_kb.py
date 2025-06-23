@@ -1,10 +1,28 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 
-def get_tarifas_kb():
+from typing import Sequence
+from database.models import Tariff
+
+
+def get_tarifas_kb(tariffs: Sequence[Tariff] | None = None):
+    """Keyboard listing existing tariffs with management options."""
     builder = InlineKeyboardBuilder()
+    if tariffs:
+        for t in tariffs:
+            builder.button(text=t.name, callback_data=f"tariff_{t.id}")
     builder.button(text="➕ Nueva Tarifa", callback_data="tarifa_new")
     builder.button(text="🔙 Volver", callback_data="vip_config")
+    builder.adjust(1)
+    return builder.as_markup()
+
+
+def get_tariff_options_kb(tariff_id: int):
+    """Keyboard with options for a specific tariff."""
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✏️ Editar", callback_data=f"edit_tariff_{tariff_id}")
+    builder.button(text="🗑 Eliminar", callback_data=f"delete_tariff_{tariff_id}")
+    builder.button(text="🔙 Volver", callback_data="config_tarifas")
     builder.adjust(1)
     return builder.as_markup()
 
