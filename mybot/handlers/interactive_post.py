@@ -21,6 +21,7 @@ async def handle_interactive_post_callback(
         return await callback.answer()
 
     service = MessageService(session, bot)
+
     reaction = await service.register_reaction(
         callback.from_user.id, message_id, reaction_type
     )
@@ -28,6 +29,7 @@ async def handle_interactive_post_callback(
         from utils.messages import BOT_MESSAGES
 
         await callback.answer(BOT_MESSAGES["reaction_already"])
+
         return
     from services.point_service import PointService
     from services.config_service import ConfigService

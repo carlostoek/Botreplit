@@ -1,4 +1,5 @@
 from aiogram import Router, F
+from aiogram.filters import StateFilter
 from aiogram.types import CallbackQuery, Message
 from aiogram.enums.chat_type import ChatType
 from aiogram import Bot
@@ -126,8 +127,10 @@ async def set_vip_reactions(message: Message, state: FSMContext, session: AsyncS
     await message.answer(text, reply_markup=get_reaction_confirm_kb())
 
 
+
 @router.callback_query(
     (AdminConfigStates.waiting_for_reaction_buttons | AdminConfigStates.waiting_for_reaction_points),
+
     F.data == "save_reactions",
 )
 async def save_reaction_buttons_callback(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
@@ -140,7 +143,9 @@ async def save_reaction_buttons_callback(callback: CallbackQuery, state: FSMCont
         await callback.answer("Debes ingresar al menos una reacción.", show_alert=True)
         return
     service = ConfigService(session)
+
     await service.set_reaction_buttons(reactions)
+
     if points:
         await service.set_reaction_points(points)
     await callback.message.edit_text(
