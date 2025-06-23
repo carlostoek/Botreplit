@@ -415,7 +415,7 @@ async def show_ranking_from_reply_keyboard(message: Message, session: AsyncSessi
             auto_delete_seconds=5
         )
 
-@router.message(F.text)
+@router.message(F.text & ~F.text.startswith("/"))
 async def handle_unrecognized_text(message: Message, session: AsyncSession, bot: Bot):
     """Enhanced handler for unrecognized text with better user guidance."""
     user_id = message.from_user.id
