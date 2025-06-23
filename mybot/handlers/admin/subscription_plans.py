@@ -7,7 +7,11 @@ from sqlalchemy import select
 
 from utils.user_roles import is_admin
 from utils.admin_state import AdminTariffStates
-from keyboards.tarifas_kb import get_duration_kb, get_tarifas_kb
+from keyboards.tarifas_kb import (
+    get_duration_kb,
+    get_tarifas_kb,
+    get_tariff_options_kb,
+)
 from keyboards.common import get_back_kb
 from utils.menu_utils import send_temporary_reply, update_menu
 from database.models import Tariff
@@ -33,8 +37,135 @@ async def config_tarifas(callback: CallbackQuery, session: AsyncSession):
     else:
         text = "💳 **Tarifas VIP**\n\nNo hay tarifas configuradas."
     
-    await update_menu(callback, text, get_tarifas_kb(), session, "config_tarifas")
+    await update_menu(callback, text, get_tarifas_kb(tariffs), session, "config_tarifas")
     await callback.answer()
+
+
+@router.callback_query(F.data.startswith("tariff_"))
+async def tariff_options(callback: CallbackQuery, session: AsyncSession):
+    """Display options for a specific tariff."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer()
+
+    if callback.data.startswith("edit_tariff_") or callback.data.startswith("delete_tariff_"):
+        return
+    tariff_id = int(callback.data.split("_")[-1])
+    tariff = await session.get(Tariff, tariff_id)
+    if not tariff:
+        await callback.answer("❌ Tarifa no encontrada", show_alert=True)
+        return
+
+    text = (
+        f"**{tariff.name}**\n"
+        f"Duración: {tariff.duration_days} días\n"
+        f"Precio: ${tariff.price}\n\n"
+        "Elige una opción:"
+    )
+    await callback.message.edit_text(
+        text,
+        reply_markup=get_tariff_options_kb(tariff_id),
+        parse_mode="Markdown",
+    )
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("edit_tariff_"))
+async def start_edit_tariff(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+    """Begin editing a tariff."""
+    if not is_admin(callback.from_user.id):
+        return await callback.answer()
+
+    tariff_id = int(callback.data.split("edit_tariff_")[-1])
+    tariff = await session.get(Tariff, tariff_id)
+    if not tariff:
+        await callback.answer("❌ Tarifa no encontrada", show_alert=True)
+        return
+
+    await state.update_data(tariff_id=tariff_id)
+    await state.set_state(AdminTariffStates.editing_tariff_duration)
+    await callback.message.edit_text(
+        f"✏️ **Editar tarifa**\n\nDuración actual: {tariff.duration_days} días\n"
+        f"Precio actual: ${tariff.price}\n\nSelecciona la nueva duración:",
+        reply_markup=get_duration_kb(),
+        parse_mode="Markdown",
+    )
+    await callback.answer()
+
+
+@router.callback_query(AdminTariffStates.editing_tariff_duration)
+async def edit_tariff_duration(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return await callback.answer()
+
+    duration = int(callback.data.split("_")[-1])
+    await state.update_data(duration_days=duration)
+    await state.set_state(AdminTariffStates.editing_tariff_price)
+
+    await callback.message.edit_text(
+        f"💰 Ingresa el nuevo precio (solo números):",
+    )
+    await callback.answer()
+
+
+@router.message(AdminTariffStates.editing_tariff_price)
+async def edit_tariff_price(message: Message, state: FSMContext):
+    if not is_admin(message.from_user.id):
+        return
+
+    try:
+        price = int(message.text.strip())
+        if price <= 0:
+            raise ValueError
+    except ValueError:
+        await send_temporary_reply(message, "❌ Precio inválido. Ingresa un número positivo.")
+        return
+
+    await state.update_data(price=price)
+    await state.set_state(AdminTariffStates.editing_tariff_name)
+
+    await message.answer("Ingresa el nuevo nombre de la tarifa:")
+
+
+@router.message(AdminTariffStates.editing_tariff_name)
+async def finish_edit_tariff(message: Message, state: FSMContext, session: AsyncSession):
+    if not is_admin(message.from_user.id):
+        return
+
+    name = sanitize_text(message.text.strip())
+    if not name:
+        await send_temporary_reply(message, "❌ El nombre no puede estar vacío.")
+        return
+
+    data = await state.get_data()
+    tariff_id = data.get("tariff_id")
+    tariff = await session.get(Tariff, tariff_id)
+    if not tariff:
+        await message.answer("❌ Tarifa no encontrada")
+        await state.clear()
+        return
+
+    # Check if new name exists for a different tariff
+    stmt = select(Tariff).where(Tariff.name.ilike(name), Tariff.id != tariff_id)
+    result = await session.execute(stmt)
+    existing = result.scalar_one_or_none()
+    if existing:
+        await send_temporary_reply(message, "❌ Ya existe una tarifa con ese nombre.")
+        return
+
+    tariff.duration_days = data.get("duration_days")
+    tariff.price = data.get("price")
+    tariff.name = name
+    await session.commit()
+
+    result = await session.execute(select(Tariff).order_by(Tariff.duration_days))
+    tariffs = result.scalars().all()
+
+    await message.answer(
+        "✅ Tarifa actualizada",
+        reply_markup=get_tarifas_kb(tariffs),
+    )
+    await state.clear()
+
 
 
 @router.callback_query(F.data == "tarifa_new")

@@ -41,6 +41,9 @@ class AdminTariffStates(StatesGroup):
     waiting_for_tariff_duration = State()
     waiting_for_tariff_price = State()
     waiting_for_tariff_name = State()
+    editing_tariff_duration = State()
+    editing_tariff_price = State()
+    editing_tariff_name = State()
 
 
 class AdminUserStates(StatesGroup):
