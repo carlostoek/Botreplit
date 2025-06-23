@@ -181,3 +181,10 @@ class AdminAuctionStates(StatesGroup):
     selecting_auction_to_end = State()
     selecting_auction_to_cancel = State()
     confirming_auction_action = State()
+
+
+class AdminVipSubscriberStates(StatesGroup):
+    """States for manual VIP subscription management."""
+
+    waiting_for_days = State()
+    waiting_for_new_date = State()

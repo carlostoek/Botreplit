@@ -129,6 +129,33 @@ class SubscriptionService:
         await self.session.commit()
         logger.info(f"Revoked VIP subscription for user {user_id}")
 
+    async def set_subscription_expiration(
+        self, user_id: int, expires_at: datetime | None
+    ) -> VipSubscription:
+        """Set or create subscription with specific expiration date."""
+        sub = await self.get_subscription(user_id)
+        if sub:
+            sub.expires_at = expires_at
+        else:
+            sub = VipSubscription(user_id=user_id, expires_at=expires_at)
+            self.session.add(sub)
+
+        user = await self.session.get(User, user_id)
+        if user:
+            if expires_at is None or expires_at > datetime.utcnow():
+                user.role = "vip"
+                user.vip_expires_at = expires_at
+                user.last_reminder_sent_at = None
+            else:
+                user.role = "free"
+                user.vip_expires_at = expires_at
+
+        await self.session.commit()
+        logger.info(
+            "Set VIP expiration for user %s to %s", user_id, expires_at
+        )
+        return sub
+
     async def is_subscription_active(self, user_id: int) -> bool:
         """Check if user has an active VIP subscription."""
         sub = await self.get_subscription(user_id)

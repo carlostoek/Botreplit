@@ -1,6 +1,7 @@
 from aiogram import Router, F, Bot
 from aiogram.types import CallbackQuery, Message
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.types import InlineKeyboardButton
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
@@ -23,13 +24,16 @@ from services import (
     get_admin_statistics,
     BadgeService,
     AchievementService,
+    MissionService,
 )
 from database.models import User, Tariff
+from utils.message_utils import get_profile_message
 from utils.text_utils import sanitize_text
 from utils.admin_state import (
     AdminVipMessageStates,
     AdminManualBadgeStates,
     AdminContentStates,
+    AdminVipSubscriberStates,
 )
 from aiogram.fsm.context import FSMContext
 from utils.menu_utils import (
@@ -43,6 +47,11 @@ import logging
 
 logger = logging.getLogger(__name__)
 router = Router()
+
+
+@router.callback_query(F.data == "vip_none")
+async def vip_none(callback: CallbackQuery):
+    await callback.answer()
 
 
 @router.callback_query(F.data == "admin_vip")
@@ -339,54 +348,132 @@ async def manage_subs(callback: CallbackQuery, session: AsyncSession):
     start = page * page_size
     current = subs[start : start + page_size]
 
-    lines = []
     builder = InlineKeyboardBuilder()
-    for i, sub in enumerate(current):
+    for sub in current:
         user = await session.get(User, sub.user_id)
         username = sanitize_text(user.username) if user else None
-        display = "No disponible"
-        if username:
-            display = username.splitlines()[0]
-        lines.append(f"{i+start+1}. {display} (ID: {sub.user_id})")
-        builder.button(text="➕", callback_data=f"vip_extend_{sub.user_id}")
-        builder.button(text="❌", callback_data=f"vip_revoke_{sub.user_id}")
-        builder.row()
+        display = username or (user.first_name or "Sin nombre") if user else str(sub.user_id)
+        builder.row(InlineKeyboardButton(text=display, callback_data="vip_none"))
+        builder.row(
+            InlineKeyboardButton(text="👤", callback_data=f"vip_profile_{sub.user_id}"),
+            InlineKeyboardButton(text="➕", callback_data=f"vip_add_{sub.user_id}"),
+            InlineKeyboardButton(text="🚫", callback_data=f"vip_kick_{sub.user_id}"),
+            InlineKeyboardButton(text="✏️", callback_data=f"vip_edit_{sub.user_id}"),
+        )
 
-    text = (
-        "👥 **Suscriptores VIP activos:**\n" + "\n".join(lines)
-        if lines
-        else "No hay suscriptores activos."
+    if start > 0 or start + page_size < len(subs):
+        nav = []
+        if start > 0:
+            nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"vip_manage:{page - 1}"))
+        if start + page_size < len(subs):
+            nav.append(InlineKeyboardButton(text="➡️", callback_data=f"vip_manage:{page + 1}"))
+        builder.row(*nav)
+    builder.row(InlineKeyboardButton(text="🔙 Volver", callback_data="admin_vip"))
+
+    await update_menu(
+        callback,
+        "👥 Suscriptores VIP activos:",
+        builder.as_markup(),
+        session,
+        "admin_vip_manage",
     )
-
-    if start > 0:
-        builder.button(text="⬅️", callback_data=f"vip_manage:{page - 1}")
-    if start + page_size < len(subs):
-        builder.button(text="➡️", callback_data=f"vip_manage:{page + 1}")
-    builder.button(text="🔙 Volver", callback_data="admin_vip")
-    builder.adjust(2)
-
-    await update_menu(callback, text, builder.as_markup(), session, "admin_vip_manage")
     await callback.answer()
 
 
-@router.callback_query(F.data.startswith("vip_extend_"))
-async def vip_extend(callback: CallbackQuery, session: AsyncSession):
+@router.callback_query(F.data.startswith("vip_add_"))
+async def vip_add_days(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
     user_id = int(callback.data.split("_")[-1])
-    sub_service = SubscriptionService(session)
-    await sub_service.extend_subscription(user_id, 30)
-    await callback.answer("✅ Suscripción extendida 30 días", show_alert=True)
+    await state.update_data(target_user=user_id)
+    await callback.message.answer(
+        "Ingresa la cantidad de días a agregar:",
+        reply_markup=get_back_keyboard("vip_manage"),
+    )
+    await state.set_state(AdminVipSubscriberStates.waiting_for_days)
+    await callback.answer()
 
 
-@router.callback_query(F.data.startswith("vip_revoke_"))
-async def vip_revoke(callback: CallbackQuery, session: AsyncSession):
+@router.callback_query(F.data.startswith("vip_kick_"))
+async def vip_kick(callback: CallbackQuery, session: AsyncSession):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
     user_id = int(callback.data.split("_")[-1])
     sub_service = SubscriptionService(session)
     await sub_service.revoke_subscription(user_id, bot=callback.bot)
-    await callback.answer("❌ Suscripción revocada", show_alert=True)
+    await callback.answer("❌ Suscriptor expulsado", show_alert=True)
+
+
+@router.callback_query(F.data.startswith("vip_profile_"))
+async def vip_profile(callback: CallbackQuery, session: AsyncSession):
+    if not is_admin(callback.from_user.id):
+        return await callback.answer()
+    user_id = int(callback.data.split("_")[-1])
+    user = await session.get(User, user_id)
+    if not user:
+        return await callback.answer("Usuario no encontrado", show_alert=True)
+    mission_service = MissionService(session)
+    missions = await mission_service.get_active_missions(user_id=user_id)
+    profile_text = await get_profile_message(user, missions, session)
+    sub_service = SubscriptionService(session)
+    sub = await sub_service.get_subscription(user_id)
+    if sub and sub.expires_at:
+        profile_text += f"\n\nVIP hasta: {sub.expires_at.strftime('%d/%m/%Y')}"
+    await callback.message.answer(profile_text)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("vip_edit_"))
+async def vip_edit(callback: CallbackQuery, state: FSMContext):
+    if not is_admin(callback.from_user.id):
+        return await callback.answer()
+    user_id = int(callback.data.split("_")[-1])
+    await state.update_data(target_user=user_id)
+    await callback.message.answer(
+        "Ingresa la nueva fecha de expiración (DD/MM/AAAA) o 0 para ilimitado:",
+        reply_markup=get_back_keyboard("vip_manage"),
+    )
+    await state.set_state(AdminVipSubscriberStates.waiting_for_new_date)
+    await callback.answer()
+
+
+@router.message(AdminVipSubscriberStates.waiting_for_days)
+async def process_add_days(message: Message, state: FSMContext, session: AsyncSession):
+    if not is_admin(message.from_user.id):
+        return
+    try:
+        days = int(message.text)
+    except ValueError:
+        await send_temporary_reply(message, "Ingresa un número válido de días.")
+        return
+    data = await state.get_data()
+    user_id = data.get("target_user")
+    sub_service = SubscriptionService(session)
+    await sub_service.extend_subscription(user_id, days)
+    await message.answer(f"✅ Suscripción extendida {days} días")
+    await state.clear()
+
+
+@router.message(AdminVipSubscriberStates.waiting_for_new_date)
+async def process_edit_date(message: Message, state: FSMContext, session: AsyncSession):
+    if not is_admin(message.from_user.id):
+        return
+    text = message.text.strip()
+    from datetime import datetime
+    if text == "0":
+        new_date = None
+    else:
+        try:
+            new_date = datetime.strptime(text, "%d/%m/%Y")
+        except ValueError:
+            await send_temporary_reply(message, "Formato inválido. Usa DD/MM/AAAA o 0.")
+            return
+    data = await state.get_data()
+    user_id = data.get("target_user")
+    sub_service = SubscriptionService(session)
+    await sub_service.set_subscription_expiration(user_id, new_date)
+    await message.answer("✅ Fecha de expiración actualizada")
+    await state.clear()
 
 
 @router.callback_query(F.data == "vip_config")
