@@ -1,10 +1,14 @@
 from __future__ import annotations
 
+import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from database.models import Channel
 from utils.text_utils import sanitize_text
+from utils.config import DEFAULT_REACTION_BUTTONS
+
+logger = logging.getLogger(__name__)
 
 
 class ChannelService:
@@ -33,3 +37,77 @@ class ChannelService:
         if channel:
             await self.session.delete(channel)
             await self.session.commit()
+
+    async def set_reactions(
+        self,
+        chat_id: int,
+        reactions: list[str],
+        reaction_points: dict[str, float] | None = None,
+    ) -> Channel | None:
+        """Configure emojis and their points for a given channel."""
+        channel = await self.session.get(Channel, chat_id)
+        if channel:
+            channel.reactions = reactions
+
+            if reaction_points is not None:
+                channel.reaction_points = reaction_points
+            elif not channel.reaction_points:
+                channel.reaction_points = {}
+
+            await self.session.commit()
+            await self.session.refresh(channel)
+            logger.info(
+                "Reacciones actualizadas para el canal %s: %s, Puntos: %s",
+                chat_id,
+                reactions,
+                reaction_points,
+            )
+            return channel
+
+        logger.warning(
+            "No se encontró el canal %s para actualizar reacciones.", chat_id
+        )
+        return None
+
+    async def get_reactions_and_points(
+        self, chat_id: int
+    ) -> tuple[list[str], dict[str, float]]:
+        """Return configured reactions and points for a channel."""
+        channel = await self.session.get(Channel, chat_id)
+
+        configured_reactions: list[str] = []
+        configured_points: dict[str, float] = {}
+
+        if channel:
+            if channel.reactions and isinstance(channel.reactions, list):
+                configured_reactions = [
+                    r for r in channel.reactions if isinstance(r, str)
+                ][:10]
+
+            if channel.reaction_points and isinstance(channel.reaction_points, dict):
+                configured_points = {
+                    k: float(v)
+                    for k, v in channel.reaction_points.items()
+                    if isinstance(v, (int, float))
+                }
+
+        if not configured_reactions:
+            configured_reactions = DEFAULT_REACTION_BUTTONS
+
+        final_points = {
+            emoji: configured_points.get(emoji, 0.5)
+            for emoji in configured_reactions
+        }
+
+        logger.debug(
+            "Reacciones y puntos obtenidos para canal %s: Reacciones=%s, Puntos=%s",
+            chat_id,
+            configured_reactions,
+            final_points,
+        )
+        return configured_reactions, final_points
+
+    async def get_reaction_points(self, chat_id: int) -> dict[str, float]:
+        """Return only reaction points for a channel."""
+        _, points = await self.get_reactions_and_points(chat_id)
+        return points
