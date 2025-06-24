@@ -17,6 +17,7 @@ from services.achievement_service import AchievementService
 from services.mission_service import MissionService
 from services.reward_service import RewardService
 from utils.messages import BOT_MESSAGES
+from services.message_service import MessageService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -403,6 +404,20 @@ async def show_ranking_from_reply_keyboard(message: Message, session: AsyncSessi
             auto_delete_seconds=5
         )
         return
+
+
+@router.message(Command("weeklyranking"))
+async def show_weekly_ranking(message: Message, session: AsyncSession, bot: Bot):
+    user_id = message.from_user.id
+    role = await get_user_role(bot, user_id, session=session)
+    if role not in ["vip", "admin"]:
+        await message.answer("Comando disponible solo para VIP")
+        return
+    msg_service = MessageService(session, bot)
+    ranking = await msg_service.get_weekly_reaction_ranking()
+    from utils.message_utils import get_weekly_reaction_ranking_message
+    text = await get_weekly_reaction_ranking_message(ranking, session)
+    await message.answer(text)
     
     try:
         text, keyboard = await menu_factory.create_menu("ranking", user_id, session, message.bot)

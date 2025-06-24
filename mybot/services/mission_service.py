@@ -168,6 +168,9 @@ class MissionService:
         target_value: int,
         reward_points: int,
         duration_days: int = 0,
+        *,
+        requires_action: bool = False,
+        action_data: dict | None = None,
     ) -> Mission:
         mission_id = f"{mission_type}_{sanitize_text(name).lower().replace(' ', '_').replace('.', '').replace(',', '')}"
         new_mission = Mission(
@@ -178,6 +181,8 @@ class MissionService:
             type=mission_type,
             target_value=target_value,
             duration_days=duration_days,
+            requires_action=requires_action,
+            action_data=action_data,
             is_active=True,
         )
         self.session.add(new_mission)

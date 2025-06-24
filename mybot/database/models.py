@@ -221,6 +221,8 @@ class UserProgress(AsyncAttrs, Base):
     last_notified_points = Column(Float, default=0)
     messages_sent = Column(Integer, default=0)
     checkin_streak = Column(Integer, default=0)
+    # Track last time the user used the free roulette spin
+    last_roulette_at = Column(DateTime, nullable=True)
 
 
 class InviteToken(AsyncAttrs, Base):
@@ -397,6 +399,34 @@ class AuctionParticipant(AsyncAttrs, Base):
     joined_at = Column(DateTime, default=func.now())
     notifications_enabled = Column(Boolean, default=True)
     last_notified_at = Column(DateTime, nullable=True)
+
+
+class MiniGamePlay(AsyncAttrs, Base):
+    """Record usage of minigames such as roulette or challenges."""
+
+    __tablename__ = "minigame_play"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    game_type = Column(String, nullable=False)
+    used_at = Column(DateTime, default=func.now())
+    is_free = Column(Boolean, default=False)
+    cost_points = Column(Float, default=0)
+
+
+class ReactionChallenge(AsyncAttrs, Base):
+    """Timed challenge to react to a number of posts."""
+
+    __tablename__ = "reaction_challenges"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
+    target_reactions = Column(Integer, nullable=False)
+    progress = Column(Integer, default=0)
+    end_time = Column(DateTime, nullable=False)
+    reward_points = Column(Integer, default=0)
+    penalty_points = Column(Integer, default=0)
+    active = Column(Boolean, default=True)
 
 
 # Funciones para manejar el estado del menú del usuario

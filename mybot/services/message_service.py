@@ -5,6 +5,7 @@ from aiogram.types import Message, ReactionTypeEmoji
 from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramAPIError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+import datetime
 
 from .config_service import ConfigService
 from database.models import ButtonReaction
@@ -64,6 +65,18 @@ class MessageService:
                         sent.message_id,
                         [ReactionTypeEmoji(emoji=r) for r in vip_reactions],
                     )
+            from services.mission_service import MissionService
+            mission_service = MissionService(self.session)
+            await mission_service.create_mission(
+                name=f"Reaccionar {sent.message_id}",
+                description="Reacciona a la publicaci\u00f3n para ganar puntos",
+                mission_type="reaction",
+                target_value=1,
+                reward_points=1,
+                duration_days=7,
+                requires_action=True,
+                action_data={"target_message_id": sent.message_id},
+            )
             return sent
         except (TelegramBadRequest, TelegramForbiddenError, TelegramAPIError):
             return False
@@ -87,6 +100,20 @@ class MessageService:
         self.session.add(reaction)
         await self.session.commit()
         await self.session.refresh(reaction)
+
+        from services.mission_service import MissionService
+        mission_service = MissionService(self.session)
+        mission_id = f"reaction_reaccionar_{message_id}"
+        await mission_service.complete_mission(
+            user_id,
+            mission_id,
+            reaction_type=reaction_type,
+            target_message_id=message_id,
+            bot=self.bot,
+        )
+        from services.minigame_service import MiniGameService
+        await MiniGameService(self.session).record_reaction(user_id, self.bot)
+
         return reaction
 
     async def get_reaction_counts(self, message_id: int) -> dict[str, int]:
@@ -112,3 +139,16 @@ class MessageService:
             )
         except TelegramBadRequest:
             pass
+
+    async def get_weekly_reaction_ranking(self, limit: int = 3) -> list[tuple[int, int]]:
+        """Return a list of (user_id, count) for reactions in last 7 days."""
+        since = datetime.datetime.utcnow() - datetime.timedelta(days=7)
+        stmt = (
+            select(ButtonReaction.user_id, func.count(ButtonReaction.id))
+            .where(ButtonReaction.created_at >= since)
+            .group_by(ButtonReaction.user_id)
+            .order_by(func.count(ButtonReaction.id).desc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.all()
