@@ -171,6 +171,7 @@ MISSION_MESSAGES = {
     "weekly_ranking_title": "🏅 Ranking Semanal de Reacciones",
     "weekly_ranking_entry": "#{rank}. @{username} - {count} reacciones",
     "challenge_started": "Reto iniciado! Reacciona a {count} publicaciones para ganar puntos.",
+    "view_all_missions_button_text": "📋 Ver Todas las Misiones",
 }
 
 # Aggregate all messages for backward compatibility
