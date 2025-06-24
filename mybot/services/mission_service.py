@@ -224,6 +224,8 @@ class MissionService:
                 progress = current_value
                 record.progress_value = progress
             else:
+                if record.progress_value is None:
+                    record.progress_value = 0
                 record.progress_value += increment
                 progress = record.progress_value
             if progress >= mission.target_value:
