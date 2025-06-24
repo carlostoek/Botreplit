@@ -38,7 +38,7 @@ VIP_SCHEDULER_INTERVAL = int(os.environ.get("VIP_SCHEDULER_INTERVAL", "3600"))
 
 # Default reaction button texts used on channel posts when no custom values
 # are configured via the admin settings menu.
-DEFAULT_REACTION_BUTTONS = ["👍 Me gusta", "🔁 Compartir", "🔥 Sexy"]
+DEFAULT_REACTION_BUTTONS = ["👍", "❤️", "😂", "🔥", "💯"]
 
 class Config:
     BOT_TOKEN = BOT_TOKEN
