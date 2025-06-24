@@ -135,7 +135,7 @@ class UserMissionProgress(AsyncAttrs, Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
     mission_id = Column(String, ForeignKey("missions.id"))
-    progress_value = Column(Integer, default=0)
+    progress_value = Column(Integer, default=0, nullable=False)
     completed = Column(Boolean, default=False)
     completed_at = Column(DateTime, nullable=True)
 
