@@ -8,6 +8,30 @@ import random
 
 router = Router()
 
+@router.message(F.text.regexp("/ruleta"))
+async def play_roulette(message: Message, session: AsyncSession, bot: Bot):
+    config = ConfigService(session)
+    if (await config.get_value("minigames_enabled")) == "false":
+        await message.answer(BOT_MESSAGES.get("minigames_disabled", "Minijuegos deshabilitados."))
+        return
+    from services.minigame_service import MiniGameService
+    service = MiniGameService(session)
+    score = await service.play_roulette(message.from_user.id, bot)
+    await message.answer(BOT_MESSAGES.get("dice_points", "Ganaste {points} puntos").format(points=score))
+
+@router.message(F.text.regexp("/reto"))
+async def start_reaction_challenge(message: Message, session: AsyncSession, bot: Bot):
+    config = ConfigService(session)
+    if (await config.get_value("minigames_enabled")) == "false":
+        await message.answer(BOT_MESSAGES.get("minigames_disabled", "Minijuegos deshabilitados."))
+        return
+    from services.minigame_service import MiniGameService
+    service = MiniGameService(session)
+    challenge = await service.start_reaction_challenge(message.from_user.id, reactions=3)
+    await message.answer(
+        BOT_MESSAGES.get("challenge_started", "¡Reto iniciado! Reacciona a {count} publicaciones en pocos minutos.").format(count=challenge.target_reactions)
+    )
+
 TRIVIA = [
     {
         "q": "¿Capital de Francia?",

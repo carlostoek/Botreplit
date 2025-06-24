@@ -128,6 +128,17 @@ async def get_ranking_message(users_ranking: list[User]) -> str:
     return ranking_text
 
 
+async def get_weekly_reaction_ranking_message(ranking: list[tuple[int, int]], session: AsyncSession) -> str:
+    text = BOT_MESSAGES["weekly_ranking_title"] + "\n\n"
+    if not ranking:
+        return text + BOT_MESSAGES["no_ranking_data"]
+    for idx, (user_id, count) in enumerate(ranking):
+        user = await session.get(User, user_id)
+        display_name = anonymize_username(user, -1)
+        text += BOT_MESSAGES["weekly_ranking_entry"].format(rank=idx + 1, username=display_name, count=count) + "\n"
+    return text
+
+
 async def get_mission_completed_message(mission: Mission) -> str:
     """Return a formatted message for mission completion."""
     return BOT_MESSAGES["mission_completed_feedback"].format(
