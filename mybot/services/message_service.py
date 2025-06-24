@@ -2,21 +2,30 @@ from __future__ import annotations
 
 from aiogram import Bot
 from aiogram.types import Message, ReactionTypeEmoji
-from aiogram.exceptions import TelegramBadRequest, TelegramForbiddenError, TelegramAPIError
+from aiogram.exceptions import (
+    TelegramBadRequest,
+    TelegramForbiddenError,
+    TelegramAPIError,
+)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 import datetime
+import logging
 
 from .config_service import ConfigService
+from .channel_service import ChannelService
 from database.models import ButtonReaction
 from keyboards.common import get_interactive_post_kb
 from utils.config import VIP_CHANNEL_ID, FREE_CHANNEL_ID
+
+logger = logging.getLogger(__name__)
 
 
 class MessageService:
     def __init__(self, session: AsyncSession, bot: Bot):
         self.session = session
         self.bot = bot
+        self.channel_service = ChannelService(self.session)
 
     async def send_interactive_post(
         self,
@@ -30,55 +39,88 @@ class MessageService:
         errors.
         """
         config = ConfigService(self.session)
+
+        target_channel_id: int | str | None = None
         channel_type = channel_type.lower()
         if channel_type == "vip":
-            channel_id = await config.get_vip_channel_id()
-            if channel_id is None:
-                channel_id = VIP_CHANNEL_ID or None
+            target_channel_id = await config.get_vip_channel_id()
+            if target_channel_id is None:
+                target_channel_id = VIP_CHANNEL_ID
         elif channel_type == "free":
-            channel_id = await config.get_free_channel_id()
-            if channel_id is None:
-                channel_id = FREE_CHANNEL_ID or None
-        else:
-            channel_id = None
-        if not channel_id:
+            target_channel_id = await config.get_free_channel_id()
+            if target_channel_id is None:
+                target_channel_id = FREE_CHANNEL_ID
+
+        if not target_channel_id:
+            logger.warning(f"No channel ID configured for type: {channel_type}")
             return None
 
+        target_channel_id_str = str(target_channel_id)
+
+        if not text or not text.strip():
+            text = "\u00a1Un nuevo post interactivo! Reacciona para ganar puntos."
+
         try:
-            buttons = await config.get_reaction_buttons()
+            raw_reactions, _ = await self.channel_service.get_reactions_and_points(target_channel_id)
+
             sent = await self.bot.send_message(
-                channel_id, text, reply_markup=get_interactive_post_kb(0, buttons)
+                chat_id=target_channel_id_str,
+                text=text,
+                reply_markup=None,
             )
-            counts = await self.get_reaction_counts(sent.message_id)
+
+            real_message_id = sent.message_id
+
+            counts = await self.get_reaction_counts(real_message_id)
+
+            updated_markup = get_interactive_post_kb(
+                message_id=real_message_id,
+                raw_reactions=raw_reactions,
+                reaction_counts=counts,
+                channel_id=target_channel_id,
+            )
+
+            logger.info(f"DEBUG: Markup to edit: {updated_markup}")
+
             await self.bot.edit_message_reply_markup(
-                channel_id,
-                sent.message_id,
-                reply_markup=get_interactive_post_kb(
-                    sent.message_id, buttons, counts
-                ),
+                chat_id=target_channel_id_str,
+                message_id=real_message_id,
+                reply_markup=updated_markup,
             )
+
             if channel_type == "vip":
                 vip_reactions = await config.get_vip_reactions()
                 if vip_reactions:
-                    await self.bot.set_message_reaction(
-                        channel_id,
-                        sent.message_id,
-                        [ReactionTypeEmoji(emoji=r) for r in vip_reactions],
-                    )
+                    try:
+                        await self.bot.set_message_reaction(
+                            chat_id=target_channel_id_str,
+                            message_id=real_message_id,
+                            reaction=[ReactionTypeEmoji(emoji=r) for r in vip_reactions[:10]],
+                        )
+                    except TelegramAPIError as e:
+                        logger.error(
+                            f"Error al establecer reacciones nativas en mensaje {real_message_id} del canal {target_channel_id}: {e}",
+                            exc_info=True,
+                        )
+
             from services.mission_service import MissionService
             mission_service = MissionService(self.session)
             await mission_service.create_mission(
-                name=f"Reaccionar {sent.message_id}",
+                name=f"Reaccionar {real_message_id}",
                 description="Reacciona a la publicaci\u00f3n para ganar puntos",
                 mission_type="reaction",
                 target_value=1,
                 reward_points=1,
                 duration_days=7,
                 requires_action=True,
-                action_data={"target_message_id": sent.message_id},
+                action_data={"target_message_id": real_message_id},
             )
             return sent
-        except (TelegramBadRequest, TelegramForbiddenError, TelegramAPIError):
+        except (TelegramBadRequest, TelegramForbiddenError, TelegramAPIError) as e:
+            logger.error(
+                f"Failed to send interactive post to channel {target_channel_id}: {e}",
+                exc_info=True,
+            )
             return False
 
     async def register_reaction(
@@ -128,17 +170,31 @@ class MessageService:
 
     async def update_reaction_markup(self, chat_id: int, message_id: int) -> None:
         """Update inline keyboard of an interactive post with current counts."""
+        chat_id_str = str(chat_id)
+
         counts = await self.get_reaction_counts(message_id)
-        config = ConfigService(self.session)
-        buttons = await config.get_reaction_buttons()
+
+        raw_reactions, _ = await self.channel_service.get_reactions_and_points(chat_id)
+
         try:
+            markup_to_edit = get_interactive_post_kb(message_id, raw_reactions, counts, chat_id)
+            logger.info(f"DEBUG: Markup being sent for update: {markup_to_edit}")
+
             await self.bot.edit_message_reply_markup(
-                chat_id,
+                chat_id_str,
                 message_id,
-                reply_markup=get_interactive_post_kb(message_id, buttons, counts),
+                reply_markup=markup_to_edit,
             )
-        except TelegramBadRequest:
-            pass
+        except TelegramBadRequest as e:
+            logger.error(
+                f"Failed to update reaction markup for chat {chat_id}, message {message_id}: {e}",
+                exc_info=True,
+            )
+        except TelegramAPIError as e:
+            logger.error(
+                f"Unexpected API error updating reaction markup for chat {chat_id}, message {message_id}: {e}",
+                exc_info=True,
+            )
 
     async def get_weekly_reaction_ranking(self, limit: int = 3) -> list[tuple[int, int]]:
         """Return a list of (user_id, count) for reactions in last 7 days."""

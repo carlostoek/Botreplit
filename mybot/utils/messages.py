@@ -166,6 +166,8 @@ MISSION_MESSAGES = {
     "dice_points": "Ganó {points} puntos lanzando el dado.",
     "trivia_correct": "¡Correcto! +5 puntos",
     "trivia_wrong": "Respuesta incorrecta.",
+    "reaction_registered_points": "✅ Reacci\u00f3n registrada. Ganaste {points} puntos.",
+    "reaction_already": "Ya has reaccionado a este post.",
     "weekly_ranking_title": "🏅 Ranking Semanal de Reacciones",
     "weekly_ranking_entry": "#{rank}. @{username} - {count} reacciones",
     "challenge_started": "Reto iniciado! Reacciona a {count} publicaciones para ganar puntos.",
