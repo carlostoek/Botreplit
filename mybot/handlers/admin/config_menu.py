@@ -52,19 +52,6 @@ async def prompt_reaction_buttons(callback: CallbackQuery, session: AsyncSession
     await callback.answer()
 
 
-@router.callback_query(F.data == "config_vip_reactions")
-async def prompt_vip_reactions(callback: CallbackQuery, session: AsyncSession, state: FSMContext):
-    if not is_admin(callback.from_user.id):
-        return await callback.answer()
-    await callback.message.edit_text(
-        "Please send the first emoji to use as a reaction.",
-        reply_markup=get_back_keyboard("admin_config"),
-    )
-    await state.update_data(vip_reactions=[])
-    await state.set_state(AdminConfigStates.waiting_for_vip_reactions)
-    await callback.answer()
-
-
 @router.message(AdminConfigStates.waiting_for_reaction_buttons)
 async def set_reaction_buttons(message: Message, state: FSMContext, session: AsyncSession):
     if not is_admin(message.from_user.id):
@@ -106,27 +93,6 @@ async def set_reaction_points_value(message: Message, state: FSMContext, session
     await state.set_state(AdminConfigStates.waiting_for_reaction_buttons)
 
 
-@router.message(AdminConfigStates.waiting_for_vip_reactions)
-async def set_vip_reactions(message: Message, state: FSMContext, session: AsyncSession):
-    if not is_admin(message.from_user.id):
-        return
-    data = await state.get_data()
-    reactions = data.get("vip_reactions", [])
-    if len(reactions) >= 5:
-        await message.answer(
-            "❌ Only 5 reactions are allowed. Press Accept to confirm your selection.",
-            reply_markup=get_reaction_confirm_kb(),
-        )
-        return
-    reactions.append(message.text.strip())
-    await state.update_data(vip_reactions=reactions)
-    if len(reactions) >= 5:
-        text = f"✅ Reaction received: {message.text.strip()}"
-    else:
-        text = f"✅ Reaction received: {message.text.strip()}\nSend another emoji or press Accept to confirm."
-    await message.answer(text, reply_markup=get_reaction_confirm_kb())
-
-
 
 @router.callback_query(
     StateFilter(
@@ -152,24 +118,6 @@ async def save_reaction_buttons_callback(callback: CallbackQuery, state: FSMCont
         await service.set_reaction_points(points)
     await callback.message.edit_text(
         "Botones de reacción actualizados.", reply_markup=get_admin_config_kb()
-    )
-    await state.clear()
-    await callback.answer()
-
-
-@router.callback_query(AdminConfigStates.waiting_for_vip_reactions, F.data == "save_reactions")
-async def save_vip_reactions_callback(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
-    if not is_admin(callback.from_user.id):
-        return await callback.answer()
-    data = await state.get_data()
-    reactions = data.get("vip_reactions", [])
-    if not reactions:
-        await callback.answer("Debes ingresar al menos una reacción.", show_alert=True)
-        return
-    service = ConfigService(session)
-    await service.set_vip_reactions(reactions)
-    await callback.message.edit_text(
-        "👍 Reactions saved successfully.", reply_markup=get_admin_config_kb()
     )
     await state.clear()
     await callback.answer()
