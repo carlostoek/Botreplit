@@ -34,8 +34,12 @@ def get_interactive_post_kb(
         callback_data = f"ip_{channel_id}_{message_id}_{emoji}"
         builder.button(text=display, callback_data=callback_data)
 
-    if builder.buttons:
-        num_buttons = len(builder.buttons)
+    keyboard_data = builder.export()
+    if keyboard_data:
+        # ``buttons`` is a generator, therefore ``len`` cannot be applied
+        # directly. ``export`` returns a list of rows with the created buttons,
+        # which allows us to count them reliably.
+        num_buttons = sum(len(row) for row in keyboard_data)
         if num_buttons <= 4:
             builder.adjust(num_buttons)
         else:
