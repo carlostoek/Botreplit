@@ -300,6 +300,10 @@ class Channel(AsyncAttrs, Base):
     __tablename__ = "channels"
     id = Column(BigInteger, primary_key=True)  # Telegram chat ID
     title = Column(String, nullable=True)
+    # --- NUEVAS COLUMNAS ---
+    reactions = Column(JSON, default=list)  # Guarda una lista de strings (ej. ["👍", "❤️", "😂"])
+    reaction_points = Column(JSON, default=dict)  # Guarda un diccionario {emoji: puntos} (ej. {"👍": 0.5, "❤️": 1.0})
+    # --- FIN NUEVAS COLUMNAS ---
 
 
 class PendingChannelRequest(AsyncAttrs, Base):
