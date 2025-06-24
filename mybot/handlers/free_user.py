@@ -48,18 +48,15 @@ async def cb_free_main_menu(callback: CallbackQuery, session: AsyncSession):
 @router.callback_query(F.data == "free_gift")
 async def cb_free_gift(callback: CallbackQuery, session: AsyncSession):
     message = callback.message
-    await message.answer(
-        "🎁 Antes de dejarte pasar... ¿puedes completar esta prueba rápida?\n\n📌 Sígueme en mis redes y desbloquea tu regalo."
-    )
-    await message.answer("📡 Verificando Instagram...")
+    await message.answer(BOT_MESSAGES["FREE_GIFT_TEXT"])
+    await message.answer(BOT_MESSAGES["verify_instagram"])
     await asyncio.sleep(2)
-    await message.answer("🔄 Reintentando conexión...")
+    await message.answer(BOT_MESSAGES["reconnecting"])
     await asyncio.sleep(2)
-    await message.answer("✅ ¡Perfecto! Instagram verificado.")
+    await message.answer(BOT_MESSAGES["verified"])
     await asyncio.sleep(1)
     await message.answer(
-
-        "✨ ¡Regalo desbloqueado!\nAquí tienes una sorpresa para ti solo: [contenido de muestra o enlace al pack gratuito]",
+        BOT_MESSAGES["gift_unlocked"],
         reply_markup=get_back_keyboard("free_main_menu"),
     )
     await callback.answer()
