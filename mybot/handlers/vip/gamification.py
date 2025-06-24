@@ -416,7 +416,7 @@ async def show_weekly_ranking(message: Message, session: AsyncSession, bot: Bot)
     msg_service = MessageService(session, bot)
     ranking = await msg_service.get_weekly_reaction_ranking()
     from utils.message_utils import get_weekly_reaction_ranking_message
-    text = await get_weekly_reaction_ranking_message(ranking, session)
+    text = await get_weekly_reaction_ranking_message(ranking, session, user_id)
     await message.answer(text)
     
     try:

@@ -101,7 +101,7 @@ async def get_reward_details_message(reward: Reward, user_points: int) -> str:
     )
 
 
-async def get_ranking_message(users_ranking: list[User]) -> str:
+async def get_ranking_message(users_ranking: list[User], viewer_user_id: int) -> str:
     """
     Generates a formatted message for the user ranking with anonymized usernames.
     """
@@ -111,9 +111,7 @@ async def get_ranking_message(users_ranking: list[User]) -> str:
         return ranking_text + BOT_MESSAGES["no_ranking_data"]
 
     for i, user in enumerate(users_ranking):
-        # Anonymize usernames for all users except when viewing own ranking
-        # Since we don't have the viewer's ID here, we'll anonymize all for privacy
-        display_name = anonymize_username(user, -1)  # -1 means anonymize for everyone
+        display_name = anonymize_username(user, viewer_user_id)
         
         ranking_text += (
             BOT_MESSAGES["ranking_entry"].format(
@@ -128,13 +126,13 @@ async def get_ranking_message(users_ranking: list[User]) -> str:
     return ranking_text
 
 
-async def get_weekly_reaction_ranking_message(ranking: list[tuple[int, int]], session: AsyncSession) -> str:
+async def get_weekly_reaction_ranking_message(ranking: list[tuple[int, int]], session: AsyncSession, viewer_user_id: int) -> str:
     text = BOT_MESSAGES["weekly_ranking_title"] + "\n\n"
     if not ranking:
         return text + BOT_MESSAGES["no_ranking_data"]
     for idx, (user_id, count) in enumerate(ranking):
         user = await session.get(User, user_id)
-        display_name = anonymize_username(user, -1)
+        display_name = anonymize_username(user, viewer_user_id)
         text += BOT_MESSAGES["weekly_ranking_entry"].format(rank=idx + 1, username=display_name, count=count) + "\n"
     return text
 
