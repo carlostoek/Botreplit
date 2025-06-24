@@ -3,7 +3,6 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 def get_admin_config_kb():
     builder = InlineKeyboardBuilder()
-    builder.button(text="📝 Configurar Reacciones", callback_data="config_reaction_buttons")
     builder.button(text="➕ Agregar canales", callback_data="config_add_channels")
     builder.button(text="⏱️ Schedulers", callback_data="config_scheduler")
     builder.button(text="🔙 Volver", callback_data="admin_back")
