@@ -13,7 +13,7 @@ from keyboards.admin_channel_config_kb import get_save_and_cancel_kb
 from keyboards.admin_main_kb import get_admin_main_kb
 from keyboards.admin_vip_channel_kb import get_admin_vip_channel_kb
 from keyboards.free_channel_admin_kb import get_free_channel_admin_kb
-from mybot.services.channel_service import ChannelService
+from services.channel_service import ChannelService
 
 logger = logging.getLogger(__name__)
 router = Router()
