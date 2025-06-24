@@ -82,7 +82,7 @@ async def vip_subscription(callback: CallbackQuery, session: AsyncSession):
     sub = await sub_service.get_subscription(callback.from_user.id)
 
     if not sub:
-        text = "No tienes una suscripción activa."
+        text = BOT_MESSAGES.get("no_active_subscription")
     else:
         join_date = sub.created_at.strftime("%d/%m/%Y") if sub.created_at else "?"
         if sub.expires_at:
@@ -118,7 +118,7 @@ async def vip_missions(callback: CallbackQuery, session: AsyncSession):
     missions = await mission_service.get_daily_active_missions(user_id=callback.from_user.id)
 
     if not missions:
-        text = "No hay misiones activas hoy."
+        text = BOT_MESSAGES.get("missions_no_active")
     else:
         lines = ["*Misiones disponibles:*\n"]
         for m in missions:

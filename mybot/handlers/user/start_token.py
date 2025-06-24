@@ -10,6 +10,7 @@ from utils.text_utils import sanitize_text
 from services.token_service import TokenService
 from services.subscription_service import SubscriptionService
 from utils.menu_utils import send_temporary_reply
+from utils.messages import BOT_MESSAGES
 from services.achievement_service import AchievementService
 from services.config_service import ConfigService
 from utils.user_roles import clear_role_cache
@@ -94,24 +95,22 @@ async def start_with_token(message: Message, command: CommandObject, session: As
             logger.error(f"Failed to create VIP invite link: {e}")
             invite_link = None
 
-    # Send welcome message with invite link
+    # Send special welcome message from Señorita Kinky
+    await message.answer(BOT_MESSAGES["vip_welcome_special"])
+
     if invite_link:
-        welcome_msg = (
-            f"🎉 ¡Bienvenido al VIP!\n\n"
-            f"Tu suscripción VIP ha sido activada por {duration} días.\n"
-            f"Expira el: {expires_at.strftime('%d/%m/%Y %H:%M')}\n\n"
-            f"🔗 Únete a nuestro canal VIP exclusivo:\n{invite_link}\n\n"
-            f"⚠️ Este enlace es personal y expira en 24 horas."
+        butler_msg = BOT_MESSAGES["vip_activation_details"].format(
+            duration=duration,
+            expires_at=expires_at.strftime("%d/%m/%Y %H:%M"),
+            invite_link=invite_link,
         )
     else:
-        welcome_msg = (
-            f"🎉 ¡Suscripción VIP activada!\n\n"
-            f"Duración: {duration} días\n"
-            f"Expira el: {expires_at.strftime('%d/%m/%Y %H:%M')}\n\n"
-            f"Usa /vip_menu para acceder a tus beneficios VIP."
+        butler_msg = BOT_MESSAGES["vip_activation_no_link"].format(
+            duration=duration,
+            expires_at=expires_at.strftime("%d/%m/%Y %H:%M"),
         )
 
-    await message.answer(welcome_msg)
+    await message.answer(butler_msg)
     logger.info(f"VIP activation completed for user {user_id}")
 
     # Clear role cache again to ensure the new role is detected immediately
