@@ -16,6 +16,7 @@ def get_free_channel_admin_kb(channel_configured: bool = False) -> InlineKeyboar
         builder.button(text="⚡ Procesar Solicitudes Pendientes", callback_data="process_pending_now")
         builder.button(text="🧹 Limpiar Solicitudes Antiguas", callback_data="cleanup_old_requests")
         builder.button(text="📊 Ver Estadísticas", callback_data="free_channel_stats")
+        builder.button(text="📝 Configurar Reacciones Free", callback_data="free_config_reactions")
     else:
         builder.button(text="⚙️ Configurar Canal Gratuito", callback_data="configure_free_channel")
     
