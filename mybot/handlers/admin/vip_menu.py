@@ -12,6 +12,7 @@ from keyboards.admin_vip_config_kb import (
     get_tariff_select_kb,
     get_vip_messages_kb,
 )
+from keyboards.admin_vip_channel_kb import get_admin_vip_channel_kb
 from utils.keyboard_utils import (
     get_back_keyboard,
     get_main_menu_keyboard,
@@ -61,7 +62,7 @@ async def vip_menu(callback: CallbackQuery, session: AsyncSession):
     await update_menu(
         callback,
         "🔐 Administración Canal VIP",
-        get_admin_vip_kb(),
+        get_admin_vip_channel_kb(),
         session,
         "admin_vip",
     )
