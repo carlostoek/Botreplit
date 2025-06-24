@@ -92,5 +92,5 @@ async def create_ranking_menu(user_id: int, session: AsyncSession) -> Tuple[str,
     point_service = PointService(session)
     top_users = await point_service.get_top_users(limit=10)
     
-    ranking_text = await get_ranking_message(top_users)
+    ranking_text = await get_ranking_message(top_users, user_id)
     return ranking_text, get_ranking_keyboard()

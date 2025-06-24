@@ -1,4 +1,5 @@
 import re
+from .config import ADMIN_IDS
 
 
 def sanitize_text(value: str | None) -> str | None:
@@ -8,22 +9,26 @@ def sanitize_text(value: str | None) -> str | None:
     return value.encode("utf-8", "ignore").decode("utf-8", "ignore")
 
 
-def anonymize_username(user, current_user_id: int) -> str:
+def anonymize_username(user, current_user_id: int, admin_ids: list[int] | None = None) -> str:
     """
-    Anonymize username for display, showing full info only to the user themselves.
+    Anonymize username for display, showing full info only to the viewer and admins.
     
     Args:
         user: User object with id, username, first_name, last_name
         current_user_id: ID of the user viewing the information
+        admin_ids: Optional list of admin IDs to show without anonymization
         
     Returns:
         str: Full name/username for own user, anonymized for others
     """
     if not user:
         return "Usuario desconocido"
+
+    if admin_ids is None:
+        admin_ids = ADMIN_IDS
     
-    # Show full info to the user themselves
-    if user.id == current_user_id:
+    # Show full info to the user themselves or if user is admin
+    if user.id == current_user_id or user.id in admin_ids:
         if user.username:
             return f"@{user.username}"
         elif user.first_name:
