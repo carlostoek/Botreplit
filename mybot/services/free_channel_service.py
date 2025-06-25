@@ -23,6 +23,7 @@ from sqlalchemy import select, func
 
 from database.models import PendingChannelRequest, User, BotConfig
 from services.config_service import ConfigService
+from services.message_registry import store_message
 from utils.text_utils import sanitize_text
 
 logger = logging.getLogger(__name__)
@@ -363,6 +364,8 @@ class FreeChannelService:
                 )
             
             logger.info(f"Message sent to free channel: {sent_message.message_id}")
+            if reply_markup:
+                store_message(free_channel_id, sent_message.message_id)
             return sent_message
             
         except Exception as e:

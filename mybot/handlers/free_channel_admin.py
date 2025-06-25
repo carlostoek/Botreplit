@@ -11,7 +11,7 @@ from utils.user_roles import is_admin
 from utils.menu_manager import menu_manager
 from services.free_channel_service import FreeChannelService
 from services.config_service import ConfigService
-from keyboards.common import get_interactive_post_kb
+from keyboards.inline_post_kb import get_reaction_kb
 from keyboards.free_channel_admin_kb import (
     get_free_channel_admin_kb,
     get_wait_time_selection_kb,
@@ -343,7 +343,7 @@ async def confirm_and_send_post(callback: CallbackQuery, state: FSMContext, sess
     sent_message = await free_service.send_message_to_channel(
         text=data.get("post_text", ""),
         protect_content=protect_content,
-        reply_markup=get_interactive_post_kb(
+        reply_markup=get_reaction_kb(
             reactions=buttons,
             current_counts={},
             message_id=0,
@@ -355,9 +355,9 @@ async def confirm_and_send_post(callback: CallbackQuery, state: FSMContext, sess
     if sent_message:
         channel_id = await config.get_free_channel_id()
         await callback.bot.edit_message_reply_markup(
-            channel_id,
-            sent_message.message_id,
-            reply_markup=get_interactive_post_kb(
+            chat_id=channel_id,
+            message_id=sent_message.message_id,
+            reply_markup=get_reaction_kb(
                 reactions=buttons,
                 current_counts={},
                 message_id=sent_message.message_id,

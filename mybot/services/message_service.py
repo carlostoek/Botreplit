@@ -15,7 +15,8 @@ import logging
 from .config_service import ConfigService
 from .channel_service import ChannelService
 from database.models import ButtonReaction
-from keyboards.common import get_interactive_post_kb
+from keyboards.inline_post_kb import get_reaction_kb
+from services.message_registry import store_message
 from utils.config import VIP_CHANNEL_ID, FREE_CHANNEL_ID
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,7 @@ class MessageService:
 
             counts = await self.get_reaction_counts(real_message_id)
 
-            updated_markup = get_interactive_post_kb(
+            updated_markup = get_reaction_kb(
                 reactions=raw_reactions,
                 current_counts=counts,
                 message_id=real_message_id,
@@ -87,6 +88,7 @@ class MessageService:
                 message_id=real_message_id,
                 reply_markup=updated_markup,
             )
+            store_message(target_channel_id, real_message_id)
 
             if channel_type == "vip":
                 vip_reactions = await config.get_vip_reactions()
@@ -177,7 +179,7 @@ class MessageService:
         raw_reactions, _ = await self.channel_service.get_reactions_and_points(chat_id)
 
         try:
-            markup_to_edit = get_interactive_post_kb(
+            markup_to_edit = get_reaction_kb(
                 reactions=raw_reactions,
                 current_counts=counts,
                 message_id=message_id,
@@ -186,8 +188,8 @@ class MessageService:
             logger.info(f"DEBUG: Markup being sent for update: {markup_to_edit}")
 
             await self.bot.edit_message_reply_markup(
-                chat_id_str,
-                message_id,
+                chat_id=chat_id_str,
+                message_id=message_id,
                 reply_markup=markup_to_edit,
             )
         except TelegramBadRequest as e:
