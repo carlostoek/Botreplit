@@ -211,6 +211,18 @@ class MissionService:
             return True
         return False
 
+    async def update_mission(self, mission_id: str, **fields) -> Mission | None:
+        """Update mission fields and return the updated mission."""
+        mission = await self.session.get(Mission, mission_id)
+        if not mission:
+            return None
+        for key, value in fields.items():
+            if hasattr(mission, key) and value is not None:
+                setattr(mission, key, value)
+        await self.session.commit()
+        await self.session.refresh(mission)
+        return mission
+
     async def update_progress(
         self,
         user_id: int,

@@ -580,3 +580,40 @@ def get_badge_selection_keyboard(badges: list) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🔙 Volver", callback_data="admin_content_badges")]
     )
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def get_game_admin_main_keyboard() -> InlineKeyboardMarkup:
+    """Main menu keyboard for game administration."""
+    keyboard = InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="📌 Gestionar Misiones", callback_data="admin_manage_missions")],
+            [InlineKeyboardButton(text="📈 Gestionar Niveles", callback_data="admin_content_levels")],
+            [InlineKeyboardButton(text="🧩 Gestionar Pistas", callback_data="admin_manage_lorepieces")],
+            [InlineKeyboardButton(text="🎁 Gestionar Recompensas", callback_data="admin_content_rewards")],
+            [InlineKeyboardButton(text="👥 Gestionar Usuarios", callback_data="admin_manage_users")],
+            [InlineKeyboardButton(text="🏛️ Gestionar Subastas", callback_data="admin_auction_main")],
+            [InlineKeyboardButton(text="🔙 Volver", callback_data="admin_main_menu")],
+        ]
+    )
+    return keyboard
+
+
+def get_admin_mission_list_keyboard(missions: list, page: int, has_prev: bool, has_next: bool) -> InlineKeyboardMarkup:
+    """Keyboard for a paginated list of missions."""
+    rows: list[list[InlineKeyboardButton]] = []
+    for m in missions:
+        rows.append([
+            InlineKeyboardButton(text="✏️", callback_data=f"edit_mission:{m.id}"),
+            InlineKeyboardButton(text="🗑", callback_data=f"delete_mission:{m.id}"),
+            InlineKeyboardButton(text="✅" if m.is_active else "❌", callback_data=f"toggle_mission:{m.id}"),
+        ])
+    nav: list[InlineKeyboardButton] = []
+    if has_prev:
+        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"missions_page:{page-1}"))
+    if has_next:
+        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"missions_page:{page+1}"))
+    if nav:
+        rows.append(nav)
+    rows.append([InlineKeyboardButton(text="➕ Crear Nueva", callback_data="admin_create_mission")])
+    rows.append([InlineKeyboardButton(text="🔙 Volver", callback_data="game_admin_main")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
