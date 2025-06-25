@@ -18,15 +18,8 @@ router = Router()
 async def show_missions_page(message: Message, session: AsyncSession, page: int) -> None:
     stmt = select(Mission).order_by(Mission.created_at)
     missions, has_prev, has_next, total_pages = await get_paginated_list(session, stmt, page)
-    lines = [f"📌 Misiones (Página {page + 1} de {total_pages})"]
-    for m in missions:
-        mission_line = (
-            f"Misión ID: {str(m.id)[:8]} | Título: {m.name} | Tipo: {m.type} | "
-            f"Puntos: {m.reward_points} | Activa: {'Sí' if m.is_active else 'No'}"
-        )
-        lines.append(mission_line)
-        lines.append("---")
-    text = "\n".join(lines).strip()
+    # Solo mostrar el encabezado "📌 Misiones"
+    text = "📌 Misiones"
     kb = get_admin_mission_list_keyboard(missions, page, has_prev, has_next)
     await safe_edit_message(message, text, kb)
 

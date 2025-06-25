@@ -599,9 +599,12 @@ def get_game_admin_main_keyboard() -> InlineKeyboardMarkup:
 
 
 def get_admin_mission_list_keyboard(missions: list, page: int, has_prev: bool, has_next: bool) -> InlineKeyboardMarkup:
-    """Keyboard for a paginated list of missions."""
+    """Keyboard for a paginated list of missions displayed as rows."""
     rows: list[list[InlineKeyboardButton]] = []
     for m in missions:
+        # Fila con el nombre de la misión
+        rows.append([InlineKeyboardButton(text=m.name, callback_data="noop")])
+        # Fila con las acciones de la misión
         rows.append([
             InlineKeyboardButton(text="✏️", callback_data=f"mission_edit:{m.id}"),
             InlineKeyboardButton(text="🗑", callback_data=f"mission_delete:{m.id}"),
