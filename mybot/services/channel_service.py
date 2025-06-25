@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from typing import Union
 
 from database.models import Channel
 from utils.text_utils import sanitize_text
@@ -40,12 +41,22 @@ class ChannelService:
 
     async def set_reactions(
         self,
-        chat_id: int,
+        chat_id: Union[int, str],
         reactions: list[str],
         reaction_points: dict[str, float] | None = None,
     ) -> Channel | None:
         """Configure emojis and their points for a given channel."""
-        channel = await self.session.get(Channel, chat_id)
+        try:
+            channel_id_int = int(chat_id)
+        except ValueError:
+            logger.error(
+                "Invalid chat_id '%s' provided for set_reactions, cannot convert to int.",
+                chat_id,
+            )
+            return None
+
+        channel = await self.session.get(Channel, channel_id_int)
+        new_channel: Channel | None = None
         if channel:
             channel.reactions = reactions
 
@@ -53,27 +64,41 @@ class ChannelService:
                 channel.reaction_points = reaction_points
             elif not channel.reaction_points:
                 channel.reaction_points = {}
-
-            await self.session.commit()
-            await self.session.refresh(channel)
-            logger.info(
-                "Reacciones actualizadas para el canal %s: %s, Puntos: %s",
-                chat_id,
-                reactions,
-                reaction_points,
+            self.session.add(channel)
+        else:
+            new_channel = Channel(
+                id=channel_id_int,
+                title=f"Canal ID {channel_id_int}",
+                reactions=reactions,
+                reaction_points=reaction_points or {},
             )
-            return channel
+            self.session.add(new_channel)
 
-        logger.warning(
-            "No se encontró el canal %s para actualizar reacciones.", chat_id
+        await self.session.commit()
+        await self.session.refresh(channel or new_channel)
+        logger.info(
+            "Reacciones actualizadas para el canal %s: %s, Puntos: %s",
+            channel_id_int,
+            reactions,
+            reaction_points,
         )
-        return None
+        return channel or new_channel
 
     async def get_reactions_and_points(
-        self, chat_id: int
+        self, chat_id: Union[int, str]
     ) -> tuple[list[str], dict[str, float]]:
         """Return configured reactions and points for a channel."""
-        channel = await self.session.get(Channel, chat_id)
+        try:
+            channel_id_int = int(chat_id)
+        except ValueError:
+            logger.error(
+                "Invalid chat_id '%s' provided, cannot convert to int.", chat_id
+            )
+            return DEFAULT_REACTION_BUTTONS, {
+                r: 0.5 for r in DEFAULT_REACTION_BUTTONS
+            }
+
+        channel = await self.session.get(Channel, channel_id_int)
 
         configured_reactions: list[str] = []
         configured_points: dict[str, float] = {}
