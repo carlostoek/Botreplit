@@ -57,13 +57,22 @@ async def mission_view_details(callback: CallbackQuery, session: AsyncSession):
         if lore:
             lore_text = f"Recompensa: {lore.title}"
 
+    status_text = "✅ *Activa*" if mission.is_active else "❌ *Inactiva*"
+    points_text = (
+        f"🎯 +{mission.reward_points} punto"
+        if mission.reward_points == 1
+        else f"🎯 +{mission.reward_points} puntos"
+    )
+
     lines = [
-        f"ID: {mission.id}",
-        f"Título: {mission.name}",
-        f"Descripción: {mission.description or '-'}",
-        f"Tipo: {mission.type}",
-        f"Puntos: {mission.reward_points}",
-        f"Activa: {'Sí' if mission.is_active else 'No'}",
+        f"**{mission.name}**",
+        f"🔹 **ID:** `{mission.id}`",
+        "🔹 **Descripción:**",
+        f"💬 {mission.description or '-'}",
+        "",
+        f"🔸 **Tipo de Misión:** `{mission.type}`",
+        f"🔸 **Puntos que Ganas:** {points_text}",
+        f"🔸 **Estado:** {status_text}",
     ]
     if lore_text:
         lines.append(lore_text)
