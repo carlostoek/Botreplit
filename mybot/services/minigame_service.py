@@ -1,9 +1,9 @@
 import datetime
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from database.models import UserProgress, MiniGamePlay, ReactionChallenge
+from database.models import UserStats, MiniGamePlay, Mission, UserMissionEntry
 from .point_service import PointService
+from .mission_service import MissionService
 
 class MiniGameService:
     def __init__(self, session: AsyncSession):
@@ -12,9 +12,9 @@ class MiniGameService:
 
     async def play_roulette(self, user_id: int, bot: Bot, *, cost: int = 5) -> int:
         """Play roulette. Returns points won."""
-        progress = await self.session.get(UserProgress, user_id)
+        progress = await self.session.get(UserStats, user_id)
         if not progress:
-            progress = UserProgress(user_id=user_id)
+            progress = UserStats(user_id=user_id)
             self.session.add(progress)
             await self.session.commit()
         now = datetime.datetime.utcnow()
@@ -37,39 +37,26 @@ class MiniGameService:
         await self.session.commit()
         return score
 
-    async def start_reaction_challenge(self, user_id: int, reactions: int, duration_minutes: int = 10, reward: int = 5, penalty: int = 2) -> ReactionChallenge:
-        end_time = datetime.datetime.utcnow() + datetime.timedelta(minutes=duration_minutes)
-        challenge = ReactionChallenge(
-            user_id=user_id,
-            target_reactions=reactions,
-            end_time=end_time,
-            reward_points=reward,
-            penalty_points=penalty,
+    async def start_reaction_challenge(self, user_id: int, reactions: int, duration_minutes: int = 10, reward: int = 5, penalty: int = 2) -> Mission:
+        ms = MissionService(self.session)
+        mission_name = f"Reaction Challenge {user_id}"
+        description = f"Reacciona {reactions} veces en {duration_minutes} minutos"
+        mission = await ms.create_mission(
+            mission_name,
+            description,
+            "reaction_challenge",
+            reactions,
+            reward,
+            duration_days=0,
+            requires_action=False,
+            action_data={"duration_minutes": duration_minutes, "penalty_points": penalty},
         )
-        self.session.add(challenge)
+        entry = UserMissionEntry(user_id=user_id, mission_id=mission.id)
+        self.session.add(entry)
         await self.session.commit()
-        await self.session.refresh(challenge)
-        return challenge
+        return mission
 
     async def record_reaction(self, user_id: int, bot: Bot):
-        now = datetime.datetime.utcnow()
-        stmt = select(ReactionChallenge).where(ReactionChallenge.user_id == user_id, ReactionChallenge.active == True)
-        result = await self.session.execute(stmt)
-        challenges = result.scalars().all()
-        for ch in challenges:
-            if ch.end_time < now:
-                await self._fail_challenge(ch, bot)
-                continue
-            ch.progress += 1
-            if ch.progress >= ch.target_reactions:
-                ch.active = False
-                await self.point_service.add_points(user_id, ch.reward_points, bot=bot)
-        await self.session.commit()
+        ms = MissionService(self.session)
+        await ms.update_progress(user_id, "reaction_challenge", increment=1, bot=bot)
 
-    async def _fail_challenge(self, challenge: ReactionChallenge, bot: Bot):
-        if not challenge.active:
-            return
-        challenge.active = False
-        if challenge.penalty_points > 0:
-            await self.point_service.deduct_points(challenge.user_id, challenge.penalty_points)
-        await self.session.commit()

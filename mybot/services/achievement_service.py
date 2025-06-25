@@ -12,8 +12,8 @@ from database.models import (
     VipSubscription,
     Badge,
     UserBadge,
-    UserProgress,
-    UserMission,
+    UserStats,
+    UserMissionEntry,
 )
 
 PREDEFINED_ACHIEVEMENTS = [
@@ -120,7 +120,7 @@ class AchievementService:
 
     # ----- Badge related methods -----
     async def _badge_condition_met(self, user_id: int, badge: Badge) -> bool:
-        progress = await self.session.get(UserProgress, user_id)
+        progress = await self.session.get(UserStats, user_id)
         if not progress:
             return False
         if badge.condition_type == "messages":
@@ -128,9 +128,9 @@ class AchievementService:
         if badge.condition_type == "login_streak":
             return progress.checkin_streak >= badge.condition_value
         if badge.condition_type == "missions":
-            stmt = select(func.count()).select_from(UserMission).where(
-                UserMission.user_id == user_id,
-                UserMission.completed == True,
+            stmt = select(func.count()).select_from(UserMissionEntry).where(
+                UserMissionEntry.user_id == user_id,
+                UserMissionEntry.completed == True,
             )
             count = (await self.session.execute(stmt)).scalar() or 0
             return count >= badge.condition_value

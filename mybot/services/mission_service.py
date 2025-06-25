@@ -6,7 +6,7 @@ from sqlalchemy import select, update
 from database.models import (
     Mission,
     User,
-    UserMissionProgress,
+    UserMissionEntry,
     Challenge,
     UserChallengeProgress,
 )
@@ -76,11 +76,8 @@ class MissionService:
                 if (datetime.datetime.now() - last_completed) < datetime.timedelta(weeks=1):
                     return True, "weekly_limit_reached"
         elif mission.type == "reaction":
-            # For reaction missions, check if the specific reaction for that message_id is recorded
-            if mission.action_data and mission.action_data.get('target_message_id') == target_message_id:
-                if user.channel_reactions and str(target_message_id) in user.channel_reactions:
-                    return True, "already_reacted_to_this_message"
-            elif mission_completion_record: # If it's a generic reaction mission, check one-time completion
+            # For reaction missions, check if already completed once
+            if mission_completion_record:
                 return True, "already_completed"
         
         return False, "" # Not completed for current period or not a one-time mission
@@ -115,11 +112,6 @@ class MissionService:
         now = datetime.datetime.now().isoformat()
         user.missions_completed[mission.id] = now
         
-        # Specific handling for reaction missions: record the message_id for which the reaction was given
-        if mission.type == "reaction" and mission.requires_action and target_message_id:
-            if not user.channel_reactions:
-                user.channel_reactions = {}
-            user.channel_reactions[str(target_message_id)] = now  # Record the reaction for this specific message
 
         # Add points to user. Event multiplier should be handled by PointService or calling context.
         # For simplicity here, we just add the base points.
@@ -209,14 +201,14 @@ class MissionService:
     ) -> None:
         missions = await self.get_active_missions(mission_type=mission_type)
         for mission in missions:
-            stmt = select(UserMissionProgress).where(
-                UserMissionProgress.user_id == user_id,
-                UserMissionProgress.mission_id == mission.id,
+            stmt = select(UserMissionEntry).where(
+                UserMissionEntry.user_id == user_id,
+                UserMissionEntry.mission_id == mission.id,
             )
             result = await self.session.execute(stmt)
             record = result.scalar_one_or_none()
             if not record:
-                record = UserMissionProgress(user_id=user_id, mission_id=mission.id)
+                record = UserMissionEntry(user_id=user_id, mission_id=mission.id)
                 self.session.add(record)
             if record.completed:
                 continue

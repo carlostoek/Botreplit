@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from database.models import User, UserProgress
+from database.models import User, UserStats
 from utils.user_roles import get_points_multiplier
 from aiogram import Bot
 from services.level_service import LevelService
@@ -15,16 +15,16 @@ class PointService:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def _get_or_create_progress(self, user_id: int) -> UserProgress:
-        progress = await self.session.get(UserProgress, user_id)
+    async def _get_or_create_progress(self, user_id: int) -> UserStats:
+        progress = await self.session.get(UserStats, user_id)
         if not progress:
-            progress = UserProgress(user_id=user_id)
+            progress = UserStats(user_id=user_id)
             self.session.add(progress)
             await self.session.commit()
             await self.session.refresh(progress)
         return progress
 
-    async def award_message(self, user_id: int, bot: Bot) -> UserProgress | None:
+    async def award_message(self, user_id: int, bot: Bot) -> UserStats | None:
         progress = await self._get_or_create_progress(user_id)
         now = datetime.datetime.utcnow()
         if progress.last_activity_at and (now - progress.last_activity_at).total_seconds() < 30:
@@ -46,12 +46,7 @@ class PointService:
 
     async def award_reaction(
         self, user: User, message_id: int, bot: Bot
-    ) -> UserProgress | None:
-        if user.channel_reactions and str(message_id) in user.channel_reactions:
-            return None
-        if user.channel_reactions is None:
-            user.channel_reactions = {}
-        user.channel_reactions[str(message_id)] = True
+    ) -> UserStats | None:
         progress = await self.add_points(user.id, 0.5, bot=bot)
         ach_service = AchievementService(self.session)
         new_badges = await ach_service.check_user_badges(user.id)
@@ -64,7 +59,7 @@ class PointService:
                 )
         return progress
 
-    async def award_poll(self, user_id: int, bot: Bot) -> UserProgress:
+    async def award_poll(self, user_id: int, bot: Bot) -> UserStats:
         progress = await self.add_points(user_id, 2, bot=bot)
         ach_service = AchievementService(self.session)
         new_badges = await ach_service.check_user_badges(user_id)
@@ -77,7 +72,7 @@ class PointService:
                 )
         return progress
 
-    async def daily_checkin(self, user_id: int, bot: Bot) -> tuple[bool, UserProgress]:
+    async def daily_checkin(self, user_id: int, bot: Bot) -> tuple[bool, UserStats]:
         progress = await self._get_or_create_progress(user_id)
         now = datetime.datetime.utcnow()
         if progress.last_checkin_at and (now - progress.last_checkin_at).total_seconds() < 86400:
@@ -101,7 +96,7 @@ class PointService:
                 )
         return True, progress
 
-    async def add_points(self, user_id: int, points: float, *, bot: Bot | None = None) -> UserProgress:
+    async def add_points(self, user_id: int, points: float, *, bot: Bot | None = None) -> UserStats:
         user = await self.session.get(User, user_id)
         if not user:
             logger.warning(
@@ -121,7 +116,6 @@ class PointService:
         total = points * multiplier
         user.points += total
         progress = await self._get_or_create_progress(user_id)
-        progress.total_points += total
         progress.last_activity_at = datetime.datetime.utcnow()
         await self.session.commit()
         await self.session.refresh(progress)
@@ -139,14 +133,14 @@ class PointService:
                     f"🏅 Has obtenido la insignia {badge.icon or ''} {badge.name}!",
                 )
         logger.info(
-            f"User {user_id} gained {total} points (base {points}, x{multiplier}). Total: {progress.total_points}"
+            f"User {user_id} gained {total} points (base {points}, x{multiplier}). Total: {user.points}"
         )
-        if bot and progress.total_points - progress.last_notified_points >= 5:
+        if bot and user.points - progress.last_notified_points >= 5:
             await bot.send_message(
                 user_id,
-                f"Has acumulado {progress.total_points:.1f} puntos en total",
+                f"Has acumulado {user.points:.1f} puntos en total",
             )
-            progress.last_notified_points = progress.total_points
+            progress.last_notified_points = user.points
             await self.session.commit()
         return progress
 

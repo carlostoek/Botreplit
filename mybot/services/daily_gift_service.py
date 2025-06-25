@@ -1,7 +1,7 @@
 import datetime
 from aiogram import Bot
 from sqlalchemy.ext.asyncio import AsyncSession
-from database.models import UserProgress
+from database.models import UserStats
 from .point_service import PointService
 from .config_service import ConfigService
 
@@ -13,9 +13,9 @@ class DailyGiftService:
 
     async def claim_gift(self, user_id: int, bot: Bot) -> tuple[bool, int]:
         """Attempt to claim the daily gift. Returns (claimed, points_awarded)."""
-        progress = await self.session.get(UserProgress, user_id)
+        progress = await self.session.get(UserStats, user_id)
         if not progress:
-            progress = UserProgress(user_id=user_id)
+            progress = UserStats(user_id=user_id)
             self.session.add(progress)
             await self.session.commit()
         now = datetime.datetime.utcnow()
