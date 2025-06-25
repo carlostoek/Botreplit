@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from aiogram import Bot
 
-from database.models import Badge, UserBadge, User, UserProgress
+from database.models import Badge, UserBadge, User, UserStats
 import re
 
 class BadgeService:
@@ -40,7 +40,7 @@ class BadgeService:
         await self.session.commit()
         return True
 
-    async def check_badges(self, user: User, progress: UserProgress, bot: Bot | None = None):
+    async def check_badges(self, user: User, progress: UserStats, bot: Bot | None = None):
         badges = await self.list_badges()
         for badge in badges:
             stmt = select(UserBadge).where(

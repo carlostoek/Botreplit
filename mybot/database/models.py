@@ -56,8 +56,6 @@ class User(AsyncAttrs, Base):
         String, default="root"
     )  # e.g., "root", "profile", "missions", "rewards"
 
-    # Channel reactions tracking
-    channel_reactions = Column(JSON, default={})  # {'message_id': True}
 
 
 class Reward(AsyncAttrs, Base):
@@ -117,21 +115,10 @@ class Mission(AsyncAttrs, Base):
     created_at = Column(DateTime, default=func.now())
 
 
-class UserMission(AsyncAttrs, Base):
-    __tablename__ = "user_missions"
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"))
-    mission_id = Column(String, ForeignKey("missions.id"))
-    progress = Column(Integer, default=0)
-    completed = Column(Boolean, default=False)
-    completed_at = Column(DateTime, nullable=True)
+class UserMissionEntry(AsyncAttrs, Base):
+    """Consolidated mission progress and completion per user."""
 
-
-class UserMissionProgress(AsyncAttrs, Base):
-    """Tracks progress of a mission per user."""
-
-    __tablename__ = "user_mission_progress"
-
+    __tablename__ = "user_mission_entries"
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
     mission_id = Column(String, ForeignKey("missions.id"))
@@ -139,6 +126,7 @@ class UserMissionProgress(AsyncAttrs, Base):
     completed = Column(Boolean, default=False)
     completed_at = Column(DateTime, nullable=True)
 
+    __table_args__ = (UniqueConstraint("user_id", "mission_id", name="uix_user_mission_entry"),)
 
 class Event(AsyncAttrs, Base):
     __tablename__ = "events"
@@ -211,10 +199,11 @@ class VipSubscription(AsyncAttrs, Base):
     created_at = Column(DateTime, default=func.now())
 
 
-class UserProgress(AsyncAttrs, Base):
-    __tablename__ = "user_progress"
+class UserStats(AsyncAttrs, Base):
+    """Activity and progression stats per user (points stored in User)."""
+
+    __tablename__ = "user_stats"
     user_id = Column(BigInteger, ForeignKey("users.id"), primary_key=True)
-    total_points = Column(Float, default=0)
     last_activity_at = Column(DateTime, default=func.now())
     last_checkin_at = Column(DateTime, nullable=True)
     last_daily_gift_at = Column(DateTime, nullable=True)
@@ -418,19 +407,39 @@ class MiniGamePlay(AsyncAttrs, Base):
     cost_points = Column(Float, default=0)
 
 
-class ReactionChallenge(AsyncAttrs, Base):
-    """Timed challenge to react to a number of posts."""
+class LorePiece(AsyncAttrs, Base):
+    """Discrete lore or clue piece that users can unlock."""
 
-    __tablename__ = "reaction_challenges"
+    __tablename__ = "lore_pieces"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
-    target_reactions = Column(Integer, nullable=False)
-    progress = Column(Integer, default=0)
-    end_time = Column(DateTime, nullable=False)
-    reward_points = Column(Integer, default=0)
-    penalty_points = Column(Integer, default=0)
-    active = Column(Boolean, default=True)
+    code_name = Column(String, unique=True, nullable=False)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)
+    content_type = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    category = Column(String, nullable=True)
+    is_main_story = Column(Boolean, default=False)
+    unlock_condition_type = Column(String, nullable=True)
+    unlock_condition_value = Column(String, nullable=True)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
+
+
+class UserLorePiece(AsyncAttrs, Base):
+    """Mapping of unlocked lore pieces per user."""
+
+    __tablename__ = "user_lore_pieces"
+
+    user_id = Column(BigInteger, ForeignKey("users.id"), primary_key=True)
+    lore_piece_id = Column(Integer, ForeignKey("lore_pieces.id"), primary_key=True)
+    unlocked_at = Column(DateTime, default=func.now())
+    context = Column(JSON, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "lore_piece_id", name="uix_user_lore_pieces"),
+    )
+
 
 
 # Funciones para manejar el estado del menú del usuario
