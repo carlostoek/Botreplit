@@ -17,8 +17,7 @@ def get_admin_main_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 
-# Handle both /admin and /panel_admin commands
-@router.message(Command(commands=["admin", "panel_admin"]))
+@router.message(Command("admin") | Command("panel_admin"))
 async def admin_panel(message: Message):
     if not is_admin(message.from_user.id):
         return
