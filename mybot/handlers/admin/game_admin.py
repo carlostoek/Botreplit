@@ -22,6 +22,7 @@ from utils.keyboard_utils import (
     get_badge_selection_keyboard,
     get_reward_type_keyboard,
 )
+from .missions_admin import show_missions_page
 from utils.admin_state import (
     AdminUserStates,
     AdminMissionStates,
@@ -205,13 +206,7 @@ async def process_search_user(message: Message, state: FSMContext, session: Asyn
 async def admin_content_missions(callback: CallbackQuery, session: AsyncSession):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    await update_menu(
-        callback,
-        "📌 Misiones - Selecciona una opción:",
-        get_admin_content_missions_keyboard(),
-        session,
-        "admin_content_missions",
-    )
+    await show_missions_page(callback.message, session, 0)
     await callback.answer()
 
 

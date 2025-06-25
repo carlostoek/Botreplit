@@ -20,10 +20,13 @@ async def show_missions_page(message: Message, session: AsyncSession, page: int)
     missions, has_prev, has_next, total_pages = await get_paginated_list(session, stmt, page)
     lines = [f"📌 Misiones (Página {page + 1} de {total_pages})"]
     for m in missions:
-        lines.append(
-            f"ID: {str(m.id)[:8]} | Título: {m.name} | Tipo: {m.type} | Puntos: {m.reward_points} | Activa: {'Sí' if m.is_active else 'No'}"
+        mission_line = (
+            f"Misión ID: {str(m.id)[:8]} | Título: {m.name} | Tipo: {m.type} | "
+            f"Puntos: {m.reward_points} | Activa: {'Sí' if m.is_active else 'No'}"
         )
-    text = "\n".join(lines)
+        lines.append(mission_line)
+        lines.append("---")
+    text = "\n".join(lines).strip()
     kb = get_admin_mission_list_keyboard(missions, page, has_prev, has_next)
     await safe_edit_message(message, text, kb)
 
@@ -123,7 +126,11 @@ async def mission_edit_field(callback: CallbackQuery, state: FSMContext):
         "points": MissionAdminStates.editing_reward,
     }
     await state.update_data(mission_id=mission_id)
-    await callback.message.edit_text(prompts[field], reply_markup=get_back_keyboard(f"mission_edit:{mission_id}"))
+    await safe_edit_message(
+        callback.message,
+        prompts[field],
+        get_back_keyboard(f"mission_edit:{mission_id}"),
+    )
     await state.set_state(states[field])
     await callback.answer()
 
@@ -193,7 +200,7 @@ async def mission_delete_confirm(callback: CallbackQuery, session: AsyncSession)
     if not mission:
         return await callback.answer("Misión no encontrada", show_alert=True)
     await MissionService(session).delete_mission(mission_id)
-    await callback.message.edit_text(f"Misión '{mission.name}' eliminada.")
+    await safe_edit_message(callback.message, f"Misión '{mission.name}' eliminada.")
     await list_missions(callback, session)
     await callback.answer()
 
