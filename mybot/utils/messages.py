@@ -172,17 +172,6 @@ MISSION_MESSAGES = {
     "weekly_ranking_entry": "#{rank}. @{username} - {count} reacciones",
     "challenge_started": "Reto iniciado! Reacciona a {count} publicaciones para ganar puntos.",
     "view_all_missions_button_text": "📋 Ver Todas las Misiones",
-    "reward_created": "✅ Recompensa creada correctamente.",
-    "reward_updated": "✅ Recompensa actualizada.",
-    "level_created": "✅ Nivel {level_number} creado correctamente.",
-    "level_updated": "✅ Nivel {level_number} actualizado.",
-    "level_deleted": "✅ Nivel eliminado.",
-    "mission_details_text": (
-        "*{mission_name}*\n"
-        "{mission_description}\n\n"
-        "🏆 Recompensa: {points_reward} puntos{lore_piece_text}\n"
-        "Tipo: {mission_type}"
-    ),
 }
 
 # Aggregate all messages for backward compatibility
