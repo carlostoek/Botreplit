@@ -1,4 +1,5 @@
 from .admin_menu import router as admin_router
+from .admin_main import router as admin_main_router
 from .vip_menu import router as vip_router
 from .free_menu import router as free_router
 from .config_menu import router as config_router
@@ -10,6 +11,7 @@ from .event_admin import router as event_admin_router
 from .admin_config import router as admin_config_router
 
 __all__ = [
+    "admin_main_router",
     "admin_router",
     "vip_router",
     "free_router",

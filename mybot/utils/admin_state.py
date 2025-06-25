@@ -93,7 +93,15 @@ class AdminMissionStates(StatesGroup):
 
 
 class MissionAdminStates(StatesGroup):
-    """States for editing existing missions."""
+    """States for mission creation and editing."""
+
+    waiting_for_name = State()
+    waiting_for_type = State()
+    waiting_for_points = State()
+    waiting_for_description = State()
+    waiting_for_lore_piece_code = State()
+
+    editing_field = State()
 
     editing_name = State()
     editing_description = State()
