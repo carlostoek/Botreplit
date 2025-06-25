@@ -57,7 +57,15 @@ async def main() -> None:
     dp.poll_answer.outer_middleware(session_middleware_factory(Session, bot))
     dp.message_reaction.outer_middleware(session_middleware_factory(Session, bot))
 
-    from middlewares import PointsMiddleware
+    from middlewares import PointsMiddleware, UserRegistrationMiddleware
+    user_reg_mw = UserRegistrationMiddleware()
+    dp.message.outer_middleware(user_reg_mw)
+    dp.callback_query.outer_middleware(user_reg_mw)
+    dp.chat_join_request.outer_middleware(user_reg_mw)
+    dp.chat_member.outer_middleware(user_reg_mw)
+    dp.poll_answer.outer_middleware(user_reg_mw)
+    dp.message_reaction.outer_middleware(user_reg_mw)
+
     dp.message.middleware(PointsMiddleware())
     dp.poll_answer.middleware(PointsMiddleware())
     dp.message_reaction.middleware(PointsMiddleware())
