@@ -3,6 +3,7 @@ from aiogram.types import CallbackQuery, Message, InlineKeyboardButton, InlineKe
 from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 import datetime
 
 from utils.user_roles import is_admin
@@ -34,6 +35,8 @@ from services.mission_service import MissionService
 from services.reward_service import RewardService
 from services.level_service import LevelService
 from database.models import User, Mission
+from database.models import Level
+from utils.pagination import paginate
 from services.point_service import PointService
 from services.config_service import ConfigService
 from services.badge_service import BadgeService
@@ -74,6 +77,20 @@ async def show_users_page(message: Message, session: AsyncSession, offset: int) 
     keyboard = get_admin_users_list_keyboard(users, offset, total_users, limit)
 
     await message.edit_text("\n".join(text_lines), reply_markup=keyboard)
+
+
+async def show_levels_page(message: Message, session: AsyncSession, page: int) -> None:
+    """Display paginated list of levels with action buttons."""
+    stmt = select(Level).order_by(Level.level_id)
+    levels, total, has_prev, has_next = await paginate(session, stmt, page)
+
+    lines = [f"📈 Niveles (página {page + 1})"]
+    for lvl in levels:
+        reward_text = lvl.reward or "-"
+        lines.append(f"{lvl.level_id}. {lvl.name} | {lvl.min_points} pts | {reward_text}")
+
+    keyboard = get_admin_level_list_keyboard(levels, page, has_prev, has_next)
+    await message.edit_text("\n".join(lines), reply_markup=keyboard)
 
 
 @router.callback_query(F.data == "admin_manage_users")
@@ -979,17 +996,16 @@ async def finish_edit_reward(callback: CallbackQuery, state: FSMContext, session
 async def admin_levels_view(callback: CallbackQuery, session: AsyncSession):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    service = LevelService(session)
-    levels = await service.list_levels()
-    if levels:
-        lines = [
-            f"{lvl.level_id}. {lvl.name} - {lvl.min_points} pts ({lvl.reward or '-'} )"
-            for lvl in levels
-        ]
-        text = "\n".join(lines)
-    else:
-        text = "No hay niveles definidos."
-    await callback.message.edit_text(text, reply_markup=get_back_keyboard("admin_content_levels"))
+    await show_levels_page(callback.message, session, 0)
+    await callback.answer()
+
+
+@router.callback_query(F.data.startswith("levels_page:"))
+async def admin_levels_page(callback: CallbackQuery, session: AsyncSession):
+    if not is_admin(callback.from_user.id):
+        return await callback.answer()
+    page = int(callback.data.split(":")[-1])
+    await show_levels_page(callback.message, session, page)
     await callback.answer()
 
 
@@ -1070,11 +1086,26 @@ async def confirm_create_level(callback: CallbackQuery, state: FSMContext, sessi
         return await callback.answer()
     data = await state.get_data()
     service = LevelService(session)
-    await service.create_level(
-        data["level_number"], data["name"], data["points"], reward=data.get("reward")
-    )
+    try:
+        level = await service.create_level(
+            data["level_number"], data["name"], data["points"], reward=data.get("reward")
+        )
+    except IntegrityError as exc:
+        from asyncpg import UniqueViolationError
+        if isinstance(exc.orig, UniqueViolationError):
+            await callback.message.edit_text(
+                f"Error: Ya existe un nivel con el número {data['level_number']}.",
+                reply_markup=get_back_keyboard("admin_content_levels"),
+            )
+        else:
+            await callback.message.edit_text("Ocurrió un error al crear el nivel.")
+        await state.clear()
+        await callback.answer()
+        return
+
     await callback.message.edit_text(
-        BOT_MESSAGES["level_created"], reply_markup=get_admin_content_levels_keyboard()
+        BOT_MESSAGES["level_created"].format(level_number=level.level_id),
+        reply_markup=get_admin_content_levels_keyboard(),
     )
     await state.clear()
     await callback.answer()
@@ -1166,8 +1197,10 @@ async def finish_edit_level(message: Message, state: FSMContext, session: AsyncS
         required_points=data.get("new_points"),
         reward=reward,
     )
+    level_number = data.get("new_number") or data["level_id"]
     await message.answer(
-        BOT_MESSAGES["level_updated"], reply_markup=get_admin_content_levels_keyboard()
+        BOT_MESSAGES["level_updated"].format(level_number=level_number),
+        reply_markup=get_admin_content_levels_keyboard(),
     )
     await state.clear()
 

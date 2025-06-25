@@ -617,3 +617,24 @@ def get_admin_mission_list_keyboard(missions: list, page: int, has_prev: bool, h
     rows.append([InlineKeyboardButton(text="➕ Crear Nueva", callback_data="admin_create_mission")])
     rows.append([InlineKeyboardButton(text="🔙 Volver", callback_data="game_admin_main")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def get_admin_level_list_keyboard(levels: list, page: int, has_prev: bool, has_next: bool) -> InlineKeyboardMarkup:
+    """Keyboard for a paginated list of levels with action buttons."""
+    rows: list[list[InlineKeyboardButton]] = []
+    for lvl in levels:
+        rows.append([
+            InlineKeyboardButton(text="✏️", callback_data=f"edit_level_{lvl.id}"),
+            InlineKeyboardButton(text="🗑", callback_data=f"del_level_{lvl.id}"),
+        ])
+
+    nav: list[InlineKeyboardButton] = []
+    if has_prev:
+        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"levels_page:{page-1}"))
+    if has_next:
+        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"levels_page:{page+1}"))
+    if nav:
+        rows.append(nav)
+    rows.append([InlineKeyboardButton(text="➕ Crear Nuevo", callback_data="admin_level_add")])
+    rows.append([InlineKeyboardButton(text="🔙 Volver", callback_data="admin_content_levels")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
