@@ -74,9 +74,9 @@ class MessageService:
             counts = await self.get_reaction_counts(real_message_id)
 
             updated_markup = get_interactive_post_kb(
+                reactions=raw_reactions,
+                current_counts=counts,
                 message_id=real_message_id,
-                raw_reactions=raw_reactions,
-                reaction_counts=counts,
                 channel_id=target_channel_id,
             )
 
@@ -177,7 +177,12 @@ class MessageService:
         raw_reactions, _ = await self.channel_service.get_reactions_and_points(chat_id)
 
         try:
-            markup_to_edit = get_interactive_post_kb(message_id, raw_reactions, counts, chat_id)
+            markup_to_edit = get_interactive_post_kb(
+                reactions=raw_reactions,
+                current_counts=counts,
+                message_id=message_id,
+                channel_id=chat_id,
+            )
             logger.info(f"DEBUG: Markup being sent for update: {markup_to_edit}")
 
             await self.bot.edit_message_reply_markup(
