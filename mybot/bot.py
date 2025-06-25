@@ -15,7 +15,7 @@ from handlers.vip import menu as vip
 from handlers.vip import gamification
 from handlers.vip.auction_user import router as auction_user_router
 from handlers.reaction_callback import router as reaction_callback_router
-from handlers.admin import admin_router, admin_main_router
+from handlers.admin import admin_router
 from handlers.admin.auction_admin import router as auction_admin_router
 from handlers.lore_handlers import router as lore_router
 
@@ -81,7 +81,6 @@ async def main() -> None:
 
     dp.include_router(start_token)
     dp.include_router(start.router)
-    dp.include_router(admin_main_router)
     dp.include_router(admin_router)
     dp.include_router(auction_admin_router)
     dp.include_router(free_channel_admin_router)  # Nuevo router para canal gratuito
