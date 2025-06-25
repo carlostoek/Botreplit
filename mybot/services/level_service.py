@@ -2,8 +2,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from aiogram import Bot
 
-from database.models import User, Level
+from database.models import User, Level, LorePiece, UserLorePiece
 from utils.messages import BOT_MESSAGES
+import logging
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_LEVELS = [
     # level_id, name, min_points, reward
@@ -150,6 +153,26 @@ class LevelService:
                         reward=new_level.reward or "",
                     )
                     await bot.send_message(user.id, special_msg)
+
+            # Desbloquear pistas de lore asociadas al nivel alcanzado
+            unlock_code = getattr(new_level, "unlocks_lore_piece_code", None)
+            if unlock_code:
+                lore_stmt = select(LorePiece).where(LorePiece.code_name == unlock_code)
+                lore_piece = (await self.session.execute(lore_stmt)).scalar_one_or_none()
+                if lore_piece:
+                    check_stmt = select(UserLorePiece).where(
+                        UserLorePiece.user_id == user.id,
+                        UserLorePiece.lore_piece_id == lore_piece.id,
+                    )
+                    exists = (await self.session.execute(check_stmt)).scalar_one_or_none()
+                    if not exists:
+                        self.session.add(UserLorePiece(user_id=user.id, lore_piece_id=lore_piece.id))
+                        await self.session.commit()
+                        if bot:
+                            await bot.send_message(user.id, f"Has desbloqueado una nueva pista: {lore_piece.title}")
+                        logger.info(
+                            f"User {user.id} unlocked lore piece {unlock_code} via level {new_level.level_id}"
+                        )
             return True
         return False
 

@@ -112,6 +112,8 @@ class Mission(AsyncAttrs, Base):
     is_active = Column(Boolean, default=True)
     requires_action = Column(Boolean, default=False)
     action_data = Column(JSON, nullable=True)
+    # Código de pista que se desbloquea al completar esta misión
+    unlocks_lore_piece_code = Column(String, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
 
@@ -190,6 +192,8 @@ class Level(AsyncAttrs, Base):
     name = Column(String, nullable=False)
     min_points = Column(Integer, nullable=False)
     reward = Column(String, nullable=True)
+    # Código de pista desbloqueada al alcanzar este nivel
+    unlocks_lore_piece_code = Column(String, nullable=True)
 
 
 class VipSubscription(AsyncAttrs, Base):

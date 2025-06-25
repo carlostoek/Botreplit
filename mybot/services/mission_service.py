@@ -9,6 +9,8 @@ from database.models import (
     UserMissionEntry,
     Challenge,
     UserChallengeProgress,
+    LorePiece,
+    UserLorePiece,
 )
 from utils.text_utils import sanitize_text
 import logging
@@ -129,7 +131,26 @@ class MissionService:
             user.last_daily_mission_reset = datetime.datetime.now()
         elif mission.type == "weekly":
             user.last_weekly_mission_reset = datetime.datetime.now()
-        
+
+        # Desbloqueo de pistas de lore vinculadas a la misión
+        unlock_code = getattr(mission, "unlocks_lore_piece_code", None)
+        if not unlock_code and mission.action_data:
+            unlock_code = mission.action_data.get("unlocks_lore_piece_code")
+        if unlock_code:
+            lore_stmt = select(LorePiece).where(LorePiece.code_name == unlock_code)
+            lore_piece = (await self.session.execute(lore_stmt)).scalar_one_or_none()
+            if lore_piece:
+                check_stmt = select(UserLorePiece).where(
+                    UserLorePiece.user_id == user_id,
+                    UserLorePiece.lore_piece_id == lore_piece.id,
+                )
+                exists = (await self.session.execute(check_stmt)).scalar_one_or_none()
+                if not exists:
+                    self.session.add(UserLorePiece(user_id=user_id, lore_piece_id=lore_piece.id))
+                    logger.info(
+                        f"User {user_id} unlocked lore piece {unlock_code} via mission {mission_id}"
+                    )
+
         # Ensure JSON field updates are marked for SQLAlchemy
         self.session.add(user) # Mark user as modified
 

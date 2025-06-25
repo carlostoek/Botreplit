@@ -17,6 +17,7 @@ from handlers.vip.auction_user import router as auction_user_router
 from handlers.reaction_callback import router as reaction_callback_router
 from handlers.admin import admin_router
 from handlers.admin.auction_admin import router as auction_admin_router
+from handlers.lore_handlers import router as lore_router
 
 from handlers import setup as setup_handlers # ¡IMPORTACIÓN CLAVE!
 
@@ -91,6 +92,7 @@ async def main() -> None:
     dp.include_router(daily_gift.router)
     dp.include_router(minigames.router)
     dp.include_router(free_user.router)
+    dp.include_router(lore_router)
     dp.include_router(channel_access_router)
 
     # Tareas programadas
