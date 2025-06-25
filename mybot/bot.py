@@ -14,7 +14,7 @@ from handlers.user import start_token
 from handlers.vip import menu as vip
 from handlers.vip import gamification
 from handlers.vip.auction_user import router as auction_user_router
-from handlers.interactive_post import router as interactive_post_router
+from handlers.reaction_callback import router as reaction_callback_router
 from handlers.admin import admin_router
 from handlers.admin.auction_admin import router as auction_admin_router
 
@@ -87,7 +87,7 @@ async def main() -> None:
     dp.include_router(vip.router)
     dp.include_router(gamification.router)
     dp.include_router(auction_user_router)
-    dp.include_router(interactive_post_router)
+    dp.include_router(reaction_callback_router)
     dp.include_router(daily_gift.router)
     dp.include_router(minigames.router)
     dp.include_router(free_user.router)
