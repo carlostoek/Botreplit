@@ -1,4 +1,6 @@
 # utils/message_utils.py
+from aiogram.types import Message, InlineKeyboardMarkup
+from aiogram.exceptions import TelegramBadRequest
 from database.models import User, Mission, Reward, UserAchievement
 from services.level_service import LevelService
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +9,21 @@ from services.achievement_service import ACHIEVEMENTS
 from utils.messages import BOT_MESSAGES
 from utils.text_utils import anonymize_username
 import datetime
+
+
+async def safe_edit_message(
+    message: Message,
+    text: str,
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    """Safely edit a message only if content or markup changed."""
+    if message.text == text and message.reply_markup == reply_markup:
+        return
+    try:
+        await message.edit_text(text, reply_markup=reply_markup)
+    except TelegramBadRequest as exc:
+        if "message is not modified" not in str(exc).lower():
+            raise
 
 
 async def get_profile_message(
