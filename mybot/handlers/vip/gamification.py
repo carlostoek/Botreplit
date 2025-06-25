@@ -175,7 +175,7 @@ async def handle_mission_details_callback(callback: CallbackQuery, session: Asyn
         from utils.message_utils import get_mission_details_message
         from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
         
-        mission_details_message = await get_mission_details_message(mission, session)
+        mission_details_message = await get_mission_details_message(mission)
 
         keyboard = InlineKeyboardMarkup(
             inline_keyboard=[
