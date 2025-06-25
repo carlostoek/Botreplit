@@ -81,13 +81,25 @@ async def get_profile_message(
     )
 
 
-async def get_mission_details_message(mission: Mission) -> str:
-    # Usar el mensaje personalizado para detalles de misión
+async def get_mission_details_message(mission: Mission, session: AsyncSession) -> str:
+    """Return formatted mission details including reward info and lore unlock."""
+    lore_piece_text = ""
+    if mission.unlocks_lore_piece_code:
+        from sqlalchemy import select
+        from database.models import LorePiece
+        result = await session.execute(
+            select(LorePiece).where(LorePiece.code_name == mission.unlocks_lore_piece_code)
+        )
+        lore_piece = result.scalar_one_or_none()
+        if lore_piece:
+            lore_piece_text = f" - Desbloquea pista: {lore_piece.title}"
+
     return BOT_MESSAGES["mission_details_text"].format(
         mission_name=mission.name,
         mission_description=mission.description,
         points_reward=mission.reward_points,
         mission_type=mission.type.capitalize(),
+        lore_piece_text=lore_piece_text,
     )
 
 

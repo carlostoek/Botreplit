@@ -131,8 +131,15 @@ class MenuManager:
         
         # Clean up any temporary messages
         await self._cleanup_temp_messages(bot, user_id)
-        
+
         try:
+            current_markup = (
+                message.reply_markup.to_python() if message.reply_markup else None
+            )
+            new_markup = keyboard.to_python() if keyboard else None
+            if (message.text == text) and (current_markup == new_markup):
+                return True
+
             await message.edit_text(
                 text=text,
                 reply_markup=keyboard,
