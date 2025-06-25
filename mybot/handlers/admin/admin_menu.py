@@ -211,8 +211,9 @@ async def handle_kinky_game_button_from_main(callback: CallbackQuery, session: A
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
-    # Simplemente llamamos al handler que ya muestra el menú completo de gamificación
-    await handle_gamification_content_menu(callback, session)
+    # Mostrar el nuevo panel de administración de juego
+    from .missions_admin import admin_main_menu
+    await admin_main_menu(callback)
     # No es necesario un callback.answer() aquí porque handle_gamification_content_menu ya lo hace.
 
 
