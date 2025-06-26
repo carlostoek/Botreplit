@@ -694,3 +694,27 @@ def get_admin_badge_list_keyboard(badges: list, page: int, has_prev: bool, has_n
     rows.append([InlineKeyboardButton(text="➕ Crear Nueva Insignia", callback_data="badge_create")])
     rows.append([InlineKeyboardButton(text="🔙 Volver", callback_data="admin_kinky_game")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def get_admin_lore_piece_list_keyboard(pieces: list, page: int, has_prev: bool, has_next: bool) -> InlineKeyboardMarkup:
+    rows: list[list[InlineKeyboardButton]] = []
+    for p in pieces:
+        rows.append([InlineKeyboardButton(text=f"{p.code_name} | {p.title}", callback_data="noop")])
+        rows.append([
+            InlineKeyboardButton(text="✏️", callback_data=f"lore_piece_edit:{p.code_name}"),
+            InlineKeyboardButton(text="🗑", callback_data=f"lore_piece_delete:{p.code_name}"),
+            InlineKeyboardButton(text="ℹ️", callback_data=f"lore_piece_view_details:{p.code_name}"),
+        ])
+
+    nav: list[InlineKeyboardButton] = []
+    if has_prev:
+        nav.append(InlineKeyboardButton(text="⬅️", callback_data=f"lore_piece_page:{page-1}"))
+    nav.append(InlineKeyboardButton(text=f"{page+1}", callback_data="noop"))
+    if has_next:
+        nav.append(InlineKeyboardButton(text="➡️", callback_data=f"lore_piece_page:{page+1}"))
+    if nav:
+        rows.append(nav)
+
+    rows.append([InlineKeyboardButton(text="➕ Crear Nueva Pista", callback_data="lore_piece_create")])
+    rows.append([InlineKeyboardButton(text="🔙 Volver", callback_data="admin_kinky_game")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
