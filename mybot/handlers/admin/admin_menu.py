@@ -218,7 +218,7 @@ async def handle_kinky_game_button_from_main(callback: CallbackQuery, session: A
         return await callback.answer("Acceso denegado", show_alert=True)
     
     # Mostrar el panel de administración de juego kinky
-    text = "Panel de Administración del Juego Kinky. Selecciona una opción:"
+    text = "Centro de Control del Juego Kinky. Selecciona una opción:"
     keyboard = get_admin_manage_content_keyboard()
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()
