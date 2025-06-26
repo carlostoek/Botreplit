@@ -23,6 +23,7 @@ from utils.keyboard_utils import (
     get_reward_type_keyboard,
 )
 from .missions_admin import show_missions_page
+from .levels_admin import show_levels_page
 from utils.admin_state import (
     AdminUserStates,
     AdminMissionStates,
@@ -974,17 +975,7 @@ async def finish_edit_reward(callback: CallbackQuery, state: FSMContext, session
 async def admin_levels_view(callback: CallbackQuery, session: AsyncSession):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    service = LevelService(session)
-    levels = await service.list_levels()
-    if levels:
-        lines = [
-            f"{lvl.level_id}. {lvl.name} - {lvl.min_points} pts ({lvl.reward or '-'} )"
-            for lvl in levels
-        ]
-        text = "\n".join(lines)
-    else:
-        text = "No hay niveles definidos."
-    await callback.message.edit_text(text, reply_markup=get_back_keyboard("admin_content_levels"))
+    await show_levels_page(callback.message, session, 0)
     await callback.answer()
 
 
