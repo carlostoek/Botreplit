@@ -4,7 +4,7 @@ Guides new admins through the initial setup process.
 """
 import logging
 from aiogram import Router, F, Bot
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -51,12 +51,12 @@ async def start_setup(message: Message, session: AsyncSession):
             auto_delete_seconds=5
         )
         return
-    
+
     tenant_service = TenantService(session)
     # Aquí puedes optar por inicializar el tenant o solo verificar el estado
     # Lo dejo como estaba para mantener la compatibilidad con tu lógica de tenant_service
     init_result = await tenant_service.initialize_tenant(message.from_user.id)
-    
+
     if not init_result["success"]:
         await menu_manager.send_temporary_message(
             message,
@@ -64,7 +64,7 @@ async def start_setup(message: Message, session: AsyncSession):
             auto_delete_seconds=10
         )
         return
-    
+
     # CAMBIO: El comando /setup siempre lleva al menú principal de configuración, no al de elección
     text, keyboard = await menu_factory.create_menu("setup_main", message.from_user.id, session, message.bot)
     await menu_manager.show_menu(
@@ -82,7 +82,7 @@ async def setup_channels_menu(callback: CallbackQuery, session: AsyncSession):
     """Show channel configuration options."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_channels", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -98,7 +98,7 @@ async def setup_vip_channel(callback: CallbackQuery, state: FSMContext, session:
     """Start VIP channel configuration."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_vip_channel_prompt", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -107,7 +107,7 @@ async def setup_vip_channel(callback: CallbackQuery, state: FSMContext, session:
         session,
         "setup_vip_channel_prompt" # Nuevo estado para el historial
     )
-    
+
     await state.set_state(SetupStates.waiting_for_vip_channel)
     await callback.answer()
 
@@ -116,7 +116,7 @@ async def setup_free_channel(callback: CallbackQuery, state: FSMContext, session
     """Start free channel configuration."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_free_channel_prompt", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -125,7 +125,7 @@ async def setup_free_channel(callback: CallbackQuery, state: FSMContext, session
         session,
         "setup_free_channel_prompt" # Nuevo estado para el historial
     )
-    
+
     await state.set_state(SetupStates.waiting_for_free_channel)
     await callback.answer()
 
@@ -134,7 +134,7 @@ async def setup_both_channels(callback: CallbackQuery, session: AsyncSession):
     """Placeholder for configuring both channels."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     # Por simplicidad, volvemos al menú de canales y mostramos un mensaje
     # Puedes crear un estado "setup_both_channels_info" en menu_factory
     text = "🛠️ **Configuración de Ambos Canales (Próximamente)**\n\n" \
@@ -155,10 +155,10 @@ async def process_vip_channel(message: Message, state: FSMContext, session: Asyn
     """Process VIP channel configuration."""
     if not is_admin(message.from_user.id):
         return
-    
+
     channel_id = None
     channel_title = None
-    
+
     if message.forward_from_chat:
         channel_id = message.forward_from_chat.id
         channel_title = message.forward_from_chat.title
@@ -169,7 +169,7 @@ async def process_vip_channel(message: Message, state: FSMContext, session: Asyn
                 channel_id = int(message.text.strip())
              except ValueError:
                 pass # Se manejará como ID inválido
-        
+
         if not channel_id:
             await menu_manager.send_temporary_message(
                 message,
@@ -177,7 +177,7 @@ async def process_vip_channel(message: Message, state: FSMContext, session: Asyn
                 auto_delete_seconds=5
             )
             return await state.set_state(SetupStates.waiting_for_vip_channel) # Volver a esperar
-    
+
     # Store channel info for confirmation
     await state.update_data(
         channel_type="vip",
@@ -185,9 +185,9 @@ async def process_vip_channel(message: Message, state: FSMContext, session: Asyn
         channel_title=channel_title,
         message_to_edit_id=message.message_id # Guarda el ID del mensaje del usuario para posible borrado
     )
-    
+
     title_text = f" ({sanitize_text(channel_title)})" if channel_title else ""
-    
+
     # Enviar un nuevo mensaje con la confirmación
     await message.answer(
         f"✅ **Canal VIP Detectado**\n\n"
@@ -195,7 +195,7 @@ async def process_vip_channel(message: Message, state: FSMContext, session: Asyn
         f"¿Es este el canal correcto?",
         reply_markup=get_channel_detection_kb()
     )
-    
+
     await state.set_state(SetupStates.waiting_for_channel_confirmation)
 
 @router.message(SetupStates.waiting_for_free_channel)
@@ -203,10 +203,10 @@ async def process_free_channel(message: Message, state: FSMContext, session: Asy
     """Process free channel configuration."""
     if not is_admin(message.from_user.id):
         return
-    
+
     channel_id = None
     channel_title = None
-    
+
     if message.forward_from_chat:
         channel_id = message.forward_from_chat.id
         channel_title = message.forward_from_chat.title
@@ -217,7 +217,7 @@ async def process_free_channel(message: Message, state: FSMContext, session: Asy
                 channel_id = int(message.text.strip())
             except ValueError:
                 pass
-        
+
         if not channel_id:
             await menu_manager.send_temporary_message(
                 message,
@@ -225,7 +225,7 @@ async def process_free_channel(message: Message, state: FSMContext, session: Asy
                 auto_delete_seconds=5
             )
             return await state.set_state(SetupStates.waiting_for_free_channel) # Volver a esperar
-    
+
     # Store channel info for confirmation
     await state.update_data(
         channel_type="free",
@@ -233,16 +233,16 @@ async def process_free_channel(message: Message, state: FSMContext, session: Asy
         channel_title=channel_title,
         message_to_edit_id=message.message_id
     )
-    
+
     title_text = f" ({sanitize_text(channel_title)})" if channel_title else ""
-    
+
     await message.answer(
         f"✅ **Canal Gratuito Detectado**\n\n"
         f"**ID del Canal**: `{channel_id}`{title_text}\n\n"
         f"¿Es este el canal correcto?",
         reply_markup=get_channel_detection_kb()
     )
-    
+
     await state.set_state(SetupStates.waiting_for_channel_confirmation)
 
 # Handlers para botones de confirmación de canal
@@ -251,18 +251,18 @@ async def confirm_channel_setup(callback: CallbackQuery, state: FSMContext, sess
     """Confirm and save channel configuration."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     data = await state.get_data()
     channel_type = data.get("channel_type")
     channel_id = data.get("channel_id")
     channel_title = data.get("channel_title")
-    
+
     if not channel_id:
         await callback.answer("Error: No se encontró información del canal", show_alert=True)
         return
-    
+
     tenant_service = TenantService(session)
-    
+
     # Configure the channel
     if channel_type == "vip":
         result = await tenant_service.configure_channels(
@@ -276,17 +276,17 @@ async def confirm_channel_setup(callback: CallbackQuery, state: FSMContext, sess
             free_channel_id=channel_id,
             channel_titles={"free": channel_title} if channel_title else None
         )
-    
+
     if result["success"]:
         channel_name = "VIP" if channel_type == "vip" else "Gratuito"
         # Volver al menú principal de setup
         text, keyboard = await menu_factory.create_menu("setup_main", callback.from_user.id, session, callback.bot)
-        
+
         # Opcional: Mostrar un mensaje más específico antes de volver al menú principal
         confirmation_text = f"✅ **Canal {channel_name} Configurado**\n\n" \
                             f"El canal ha sido configurado exitosamente.\n\n" \
                             f"**Siguiente paso**: {text.splitlines()[0]}" # Solo el título del menú principal
-        
+
         await menu_manager.update_menu(
             callback,
             confirmation_text, # Puedes usar el texto que desees aquí
@@ -302,7 +302,7 @@ async def confirm_channel_setup(callback: CallbackQuery, state: FSMContext, sess
             session,
             "setup_channels"
         )
-    
+
     await state.clear()
     await callback.answer()
 
@@ -311,10 +311,10 @@ async def detect_another_channel(callback: CallbackQuery, state: FSMContext, ses
     """Allow user to try detecting another channel."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     data = await state.get_data()
     channel_type = data.get("channel_type")
-    
+
     if channel_type == "vip":
         text, keyboard = await menu_factory.create_menu("setup_vip_channel_prompt", callback.from_user.id, session, callback.bot)
         await menu_manager.update_menu(
@@ -342,10 +342,10 @@ async def manual_channel_id_prompt(callback: CallbackQuery, state: FSMContext, s
     """Prompt for manual channel ID input."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     data = await state.get_data()
     channel_type = data.get("channel_type")
-    
+
     text, keyboard = await menu_factory.create_menu("setup_manual_channel_id_prompt", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -362,22 +362,22 @@ async def process_manual_channel_id(message: Message, state: FSMContext, session
     """Process manually entered channel ID."""
     if not is_admin(message.from_user.id):
         return
-    
+
     try:
         channel_id = int(message.text.strip())
         if not str(channel_id).startswith("-100"): # Validar formato de ID de canal
             raise ValueError("Invalid channel ID format")
-            
+
         data = await state.get_data()
         channel_type = data.get("channel_type")
-        
+
         # Store channel info for confirmation
         await state.update_data(
             channel_id=channel_id,
             channel_title=None, # Manual input usually means no title initially
             message_to_edit_id=message.message_id
         )
-        
+
         await message.answer(
             f"✅ **ID de Canal {channel_type.upper()} Ingresado**\n\n"
             f"**ID del Canal**: `{channel_id}`\n\n"
@@ -385,7 +385,7 @@ async def process_manual_channel_id(message: Message, state: FSMContext, session
             reply_markup=get_channel_detection_kb()
         )
         await state.set_state(SetupStates.waiting_for_channel_confirmation)
-        
+
     except ValueError:
         await menu_manager.send_temporary_message(
             message,
@@ -394,7 +394,7 @@ async def process_manual_channel_id(message: Message, state: FSMContext, session
             auto_delete_seconds=7
         )
         await state.set_state(SetupStates.waiting_for_manual_channel_id) # Volver a esperar
-    
+
 # --- Gamification Handlers ---
 # setup_gamification_menu ya existe
 
@@ -405,7 +405,7 @@ async def setup_missions(callback: CallbackQuery, session: AsyncSession):
     """Handle setup missions click."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_missions_info", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -421,7 +421,7 @@ async def setup_badges(callback: CallbackQuery, session: AsyncSession):
     """Handle setup badges click."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_badges_info", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -437,7 +437,7 @@ async def setup_rewards(callback: CallbackQuery, session: AsyncSession):
     """Handle setup rewards click."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_rewards_info", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -453,7 +453,7 @@ async def setup_levels(callback: CallbackQuery, session: AsyncSession):
     """Handle setup levels click."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_levels_info", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -475,7 +475,7 @@ async def setup_premium_tariff(callback: CallbackQuery, session: AsyncSession):
     """Handle setup premium tariff click."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_premium_tariff_info", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -491,7 +491,7 @@ async def setup_custom_tariffs(callback: CallbackQuery, session: AsyncSession):
     """Handle setup custom tariffs click."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_custom_tariffs_info", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -558,7 +558,7 @@ async def show_setup_guide(callback: CallbackQuery, session: AsyncSession):
     """Show setup guide for admin."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_guide_info", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -574,7 +574,7 @@ async def setup_advanced(callback: CallbackQuery, session: AsyncSession):
     """Handle advanced setup options."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("setup_advanced_info", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -595,7 +595,7 @@ async def cancel_setup_action(callback: CallbackQuery, state: FSMContext, sessio
     await state.clear() # Limpiar el estado de FSM
 
     text, keyboard = await menu_factory.create_menu("setup_main", callback.from_user.id, session, callback.bot)
-    
+
     await menu_manager.update_menu(
         callback,
         "❌ **Acción Cancelada**\n\n"
@@ -613,7 +613,7 @@ async def navigate_to_admin_main_from_setup(callback: CallbackQuery, session: As
     """Navigate to the main admin panel after setup completion or skip."""
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     text, keyboard = await menu_factory.create_menu("admin_main", callback.from_user.id, session, callback.bot)
     await menu_manager.update_menu(
         callback,
@@ -635,7 +635,7 @@ async def handle_start_setup_callback(callback: CallbackQuery, session: AsyncSes
     """
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     await state.clear() # Limpia cualquier estado de FSM por si acaso
 
     text, keyboard = await menu_factory.create_menu("setup_main", callback.from_user.id, session, callback.bot)
@@ -656,7 +656,7 @@ async def handle_skip_to_admin_callback(callback: CallbackQuery, session: AsyncS
     """
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     await state.clear() # Limpia cualquier estado de FSM por si acaso
 
     text, keyboard = await menu_factory.create_menu("admin_main", callback.from_user.id, session, callback.bot)
@@ -677,7 +677,7 @@ async def handle_show_setup_guide_callback(callback: CallbackQuery, session: Asy
     """
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     await state.clear() # Limpia cualquier estado de FSM por si acaso
 
     text, keyboard = await menu_factory.create_menu("setup_guide_info", callback.from_user.id, session, callback.bot)
@@ -700,16 +700,16 @@ async def handle_admin_kinky_game_button(callback: CallbackQuery, session: Async
     """
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
-    
+
     from utils.keyboard_utils import get_admin_manage_content_keyboard # Asegurarse de la importación
-    
+
     text = "🎲 **Panel de Gestión de Gamificación Kinky**\n\n" \
            "¡Bienvenido al centro de control de todos tus juegos y actividades! " \
            "Aquí puedes gestionar usuarios, misiones, recompensas y más. " \
            "Elige lo que quieres hacer:"
-    
+
     keyboard = get_admin_manage_content_keyboard()
-    
+
     await menu_manager.update_menu(
         callback,
         text,
@@ -718,4 +718,3 @@ async def handle_admin_kinky_game_button(callback: CallbackQuery, session: Async
         "admin_gamification_main" # Usamos este estado, ya que es el menú de gamificación general
     )
     await callback.answer()
-        

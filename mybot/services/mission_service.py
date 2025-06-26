@@ -324,4 +324,4 @@ class MissionService:
                 completed.append(challenge)
                 await self.point_service.add_points(user_id, 100, bot=bot)
         await self.session.commit()
-        return completed
+        return completedd

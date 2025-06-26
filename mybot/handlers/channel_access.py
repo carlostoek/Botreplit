@@ -29,7 +29,7 @@ async def handle_chat_member(update: ChatMemberUpdated, bot: Bot, session: Async
     free_id = await free_service.get_free_channel_id()
     
     if not free_id or update.chat.id != free_id:
-        return
+        returnturn
 
     user_id = update.from_user.id
     status = update.new_chat_member.status
