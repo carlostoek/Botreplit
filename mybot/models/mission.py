@@ -22,7 +22,7 @@ class Mission(AsyncAttrs, Base):
     reward_type: Mapped[str] = mapped_column(String(50), nullable=False)
     reward_amount: Mapped[float] = mapped_column(Integer, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    mission_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime, default=datetime.datetime.utcnow
     )
