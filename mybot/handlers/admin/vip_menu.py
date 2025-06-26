@@ -29,7 +29,7 @@ from services import (
 )
 from database.models import User, Tariff
 from utils.message_utils import get_profile_message
-from utils.text_utils import sanitize_text
+from utils.text_utils import sanitize_text, escape_markdown_v2
 from utils.admin_state import (
     AdminVipMessageStates,
     AdminManualBadgeStates,
@@ -125,7 +125,7 @@ async def vip_create_token(callback: CallbackQuery, session: AsyncSession, bot: 
     
     message_text = (
         f"✅ **Token VIP Generado**\n\n"
-        f"📋 **Tarifa:** {tariff.name}\n"
+        f"📋 **Tarifa:** {escape_markdown_v2(tariff.name)}\n"
         f"⏱️ **Duración:** {tariff.duration_days} días\n"
         f"💰 **Precio:** ${tariff.price}\n\n"
         f"🔗 **Enlace de activación:**\n`{link}`\n\n"
@@ -188,7 +188,9 @@ async def vip_stats(callback: CallbackQuery, session: AsyncSession):
     
     if tariffs:
         for t in tariffs:
-            text_lines.append(f"• {t.name}: {t.duration_days}d - ${t.price}")
+            text_lines.append(
+                f"• {escape_markdown_v2(t.name)}: {t.duration_days}d - ${t.price}"
+            )
     else:
         text_lines.append("• No hay tarifas configuradas")
 

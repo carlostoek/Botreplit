@@ -35,7 +35,7 @@ from utils.admin_state import (
 from services.mission_service import MissionService
 from services.reward_service import RewardService
 from services.level_service import LevelService
-from database.models import User, Mission
+from database.models import User, Mission, Level
 from services.point_service import PointService
 from services.config_service import ConfigService
 from services.badge_service import BadgeService
