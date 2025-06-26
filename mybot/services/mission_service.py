@@ -172,8 +172,13 @@ class MissionService:
         # Ensure JSON field updates are marked for SQLAlchemy
         self.session.add(user) # Mark user as modified
 
-        await self.session.commit()
-        await self.session.refresh(user)
+        try:
+            await self.session.commit()
+            await self.session.refresh(user)
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Error completing mission {mission_id} for user {user_id}: {e}")
+            raise
 
         if bot:
             from utils.message_utils import get_mission_completed_message
@@ -217,16 +222,26 @@ class MissionService:
             is_active=True,
         )
         self.session.add(new_mission)
-        await self.session.commit()
-        await self.session.refresh(new_mission)
+        try:
+            await self.session.commit()
+            await self.session.refresh(new_mission)
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Error creating mission {name}: {e}")
+            raise
         return new_mission
 
     async def toggle_mission_status(self, mission_id: str, status: bool) -> bool:
         mission = await self.session.get(Mission, mission_id)
         if mission:
             mission.is_active = status
-            await self.session.commit()
-            return True
+            try:
+                await self.session.commit()
+                return True
+            except Exception as e:
+                await self.session.rollback()
+                logger.error(f"Error toggling mission {mission_id} status: {e}")
+                raise
         return False
 
     async def update_mission(self, mission_id: str, **fields) -> Mission | None:
@@ -237,8 +252,13 @@ class MissionService:
         for key, value in fields.items():
             if hasattr(mission, key) and value is not None:
                 setattr(mission, key, value)
-        await self.session.commit()
-        await self.session.refresh(mission)
+        try:
+            await self.session.commit()
+            await self.session.refresh(mission)
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Error updating mission {mission_id}: {e}")
+            raise
         return mission
 
     async def update_progress(
@@ -276,8 +296,8 @@ class MissionService:
                 record.completed_at = datetime.datetime.utcnow()
                 await self.point_service.add_points(user_id, mission.reward_points, bot=bot)
                 if bot:
-                    from ..utils.message_utils import get_mission_completed_message
-from ..utils.keyboard_utils import get_mission_completed_keyboardd
+                    from utils.message_utils import get_mission_completed_message
+                    from utils.keyboard_utils import get_mission_completed_keyboard
 
                     text = await get_mission_completed_message(mission)
                     await bot.send_message(
@@ -285,14 +305,24 @@ from ..utils.keyboard_utils import get_mission_completed_keyboardd
                         text,
                         reply_markup=get_mission_completed_keyboard(),
                     )
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Error updating progress for user {user_id}: {e}")
+            raise
 
     async def delete_mission(self, mission_id: str) -> bool:
         mission = await self.session.get(Mission, mission_id)
         if mission:
-            await self.session.delete(mission)
-            await self.session.commit()
-            return True
+            try:
+                await self.session.delete(mission)
+                await self.session.commit()
+                return True
+            except Exception as e:
+                await self.session.rollback()
+                logger.error(f"Error deleting mission {mission_id}: {e}")
+                raise
         return False
 
     async def get_active_challenges(self, challenge_type: str | None = None) -> list[Challenge]:
@@ -323,5 +353,10 @@ from ..utils.keyboard_utils import get_mission_completed_keyboardd
                 prog.completed_at = datetime.datetime.utcnow()
                 completed.append(challenge)
                 await self.point_service.add_points(user_id, 100, bot=bot)
-        await self.session.commit()
+        try:
+            await self.session.commit()
+        except Exception as e:
+            await self.session.rollback()
+            logger.error(f"Error incrementing challenge progress for user {user_id}: {e}")
+            raise
         return completed
