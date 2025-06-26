@@ -123,7 +123,8 @@ class UserMissionEntry(AsyncAttrs, Base):
     __tablename__ = "user_mission_entries"
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
-    mission_id = Column(String, ForeignKey("missions.id"))
+    # Use Integer to match the primary key type of the missions table
+    mission_id = Column(Integer, ForeignKey("missions.id"))
     progress_value = Column(Integer, default=0, nullable=False)
     completed = Column(Boolean, default=False)
     completed_at = Column(DateTime, nullable=True)
