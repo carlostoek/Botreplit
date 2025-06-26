@@ -6,8 +6,8 @@ from aiogram import Router, F
 from aiogram.types import Message, CallbackQuery, InlineKeyboardMarkup, InlineKeyboardButton
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from mybot.services.backpack_service import BackpackService
-from mybot.utils.user_roles import get_user_role
+from services.backpack_service import BackpackService
+from utils.user_roles import get_user_role
 
 router = Router()
 

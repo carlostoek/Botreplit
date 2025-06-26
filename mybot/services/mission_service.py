@@ -156,7 +156,7 @@ class MissionService:
             unlock_pista = mission.action_data.get("unlocks_pista")
         
         if unlock_pista:
-            from mybot.services.backpack_service import BackpackService
+            from services.backpack_service import BackpackService
             backpack_service = BackpackService(self.session)
             pista = await backpack_service.get_pista_by_title(unlock_pista)
             if pista:
