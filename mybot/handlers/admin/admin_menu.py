@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from keyboards.admin_main_kb import get_admin_main_kb
 from utils.user_roles import is_admin
 from utils.menu_manager import menu_manager
-from utils.menu_factory import menu_factory
+from utils.menu_factory import menu_factory  # MyBot no es módulo, es la raíz del proyecto
 from services.tenant_service import TenantService
 from services import get_admin_statistics
 from database.models import Tariff, Token

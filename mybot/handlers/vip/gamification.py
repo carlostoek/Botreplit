@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.models import User
 from utils.text_utils import sanitize_text
 from utils.menu_manager import menu_manager
-from utils.menu_factory import menu_factory
+from utils.menu_factory import menu_factory  # MyBot no es módulo, es la raíz del proyecto
 from utils.user_roles import get_user_role
 from services.point_service import PointService
 from services.achievement_service import AchievementService

@@ -189,3 +189,7 @@ class MenuFactory:
                 "El estado de configuración solicitado no es válido.",
                 get_setup_confirmation_kb("cancel_setup")
             )
+
+
+# MyBot no es módulo, es la raíz del proyecto
+menu_factory = MenuFactory()

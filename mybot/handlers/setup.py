@@ -25,7 +25,7 @@ from keyboards.setup_kb import (
 from utils.text_utils import sanitize_text
 
 # Importar menu_factory para crear menús específicos si es necesario
-from utils.menu_factory import menu_factory 
+from utils.menu_factory import menu_factory  # MyBot no es módulo, es la raíz del proyecto
 
 logger = logging.getLogger(__name__)
 router = Router()

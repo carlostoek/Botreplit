@@ -221,7 +221,8 @@ class MenuManager:
             logger.debug(f"User {user_id} has no navigation history. Falling back to default: '{default_menu_state}'.")
         
         # Import here to avoid circular imports
-        from utils.menu_factory import menu_factory # Usa la instancia global si existe
+        from utils.menu_factory import menu_factory  # Usa la instancia global si existe
+        # MyBot no es módulo, es la raíz del proyecto
         
         try:
             # create_menu necesita 'bot' para ciertas lógicas de texto/teclado.
