@@ -13,7 +13,7 @@ from keyboards.subscription_kb import get_free_main_menu_kb
 def _menu_details(role: str):
     """Return (text, keyboard, state) for the given role."""
     if role == "admin":
-        return "Panel de Administración", get_admin_main_kb(), "admin_main"
+        return "Centro de Control", get_admin_main_kb(), "admin_main"
     if role == "vip":
         return (
             BOT_MESSAGES["start_welcome_returning_user"],
