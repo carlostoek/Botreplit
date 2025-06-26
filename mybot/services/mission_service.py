@@ -156,7 +156,7 @@ class MissionService:
             unlock_pista = mission.action_data.get("unlocks_pista")
         
         if unlock_pista:
-            from mybot.services.backpack_service import BackpackService
+            from services.backpack_service import BackpackService
             backpack_service = BackpackService(self.session)
             pista = await backpack_service.get_pista_by_title(unlock_pista)
             if pista:
@@ -302,8 +302,8 @@ class MissionService:
                 record.completed_at = datetime.datetime.utcnow()
                 await self.point_service.add_points(user_id, mission.reward_points, bot=bot)
                 if bot:
-                    from ..utils.message_utils import get_mission_completed_message
-from ..utils.keyboard_utils import get_mission_completed_keyboardd
+                    from utils.message_utils import get_mission_completed_message
+                    from utils.keyboard_utils import get_mission_completed_keyboard
 
                     text = await get_mission_completed_message(mission)
                     await bot.send_message(
