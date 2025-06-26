@@ -209,6 +209,11 @@ def get_admin_manage_content_keyboard():
             ],
             [
                 InlineKeyboardButton(
+                    text="📜 Pistas (Lore)", callback_data="admin_content_lore_pieces"
+                )
+            ],
+            [
+                InlineKeyboardButton(
                     text="🎁 Recompensas (Catálogo VIP)",
                     callback_data="admin_content_rewards",
                 )
