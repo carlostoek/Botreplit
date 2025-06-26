@@ -1083,10 +1083,16 @@ async def admin_level_edit(callback: CallbackQuery, session: AsyncSession):
 
 
 @router.callback_query(F.data.startswith("edit_level_"))
-async def start_edit_level(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def start_edit_level(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession,
+    level_id: int | None = None,
+):
+    """Initiate the level editing conversation."""
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    lvl_id = int(callback.data.split("edit_level_")[-1])
+    lvl_id = level_id if level_id is not None else int(callback.data.split("edit_level_")[-1])
     level = await session.get(Level, lvl_id)
     if not level:
         await callback.answer("Nivel no encontrado", show_alert=True)
@@ -1178,10 +1184,14 @@ async def admin_level_delete(callback: CallbackQuery, session: AsyncSession):
 
 
 @router.callback_query(F.data.startswith("del_level_"))
-async def confirm_del_level(callback: CallbackQuery, session: AsyncSession):
+async def confirm_del_level(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    level_id: int | None = None,
+):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    lvl_id = int(callback.data.split("del_level_")[-1])
+    lvl_id = level_id if level_id is not None else int(callback.data.split("del_level_")[-1])
     service = LevelService(session)
     levels = await service.list_levels()
     if len(levels) <= 1:
@@ -1204,10 +1214,14 @@ async def confirm_del_level(callback: CallbackQuery, session: AsyncSession):
 
 
 @router.callback_query(F.data.startswith("confirm_del_level_"))
-async def delete_level(callback: CallbackQuery, session: AsyncSession):
+async def delete_level(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    level_id: int | None = None,
+):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    lvl_id = int(callback.data.split("confirm_del_level_")[-1])
+    lvl_id = level_id if level_id is not None else int(callback.data.split("confirm_del_level_")[-1])
     service = LevelService(session)
     levels = await service.list_levels()
     if len(levels) <= 1:

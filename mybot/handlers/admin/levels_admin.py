@@ -76,21 +76,22 @@ async def level_create(callback: CallbackQuery, state: FSMContext):
 @router.callback_query(F.data.startswith("level_edit:"))
 async def level_edit(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
     from .game_admin import start_edit_level
-    level_id = callback.data.split(":")[1]
-    callback.data = f"edit_level_{level_id}"
-    await start_edit_level(callback, state, session)
+    level_id = int(callback.data.split(":")[1])
+    # Pass the level_id directly to avoid relying on callback.data mutation
+    await start_edit_level(callback, state, session, level_id=level_id)
 
 
 @router.callback_query(F.data.startswith("level_delete:"))
 async def level_delete(callback: CallbackQuery, session: AsyncSession):
     from .game_admin import confirm_del_level
-    level_id = callback.data.split(":")[1]
-    callback.data = f"del_level_{level_id}"
-    await confirm_del_level(callback, session)
+    level_id = int(callback.data.split(":")[1])
+    # Pass the level id directly to the confirmation handler
+    await confirm_del_level(callback, session, level_id=level_id)
 
 
 @router.callback_query(F.data.startswith("confirm_del_level_"))
 async def level_delete_confirm(callback: CallbackQuery, session: AsyncSession):
     from .game_admin import delete_level
-    await delete_level(callback, session)
+    level_id = int(callback.data.split("confirm_del_level_")[-1])
+    await delete_level(callback, session, level_id=level_id)
 
