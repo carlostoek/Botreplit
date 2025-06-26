@@ -31,6 +31,7 @@ from .channel_admin import router as channel_admin_router
 from .subscription_plans import router as subscription_plans_router
 from .game_admin import router as game_admin_router
 from .missions_admin import router as missions_admin_router
+from .levels_admin import router as levels_admin_router
 from .event_admin import router as event_admin_router
 from .admin_config import router as admin_config_router
 
@@ -41,6 +42,7 @@ router.include_router(channel_admin_router)
 router.include_router(subscription_plans_router)
 router.include_router(game_admin_router)
 router.include_router(missions_admin_router)
+router.include_router(levels_admin_router)
 router.include_router(event_admin_router)
 router.include_router(admin_config_router)
 
