@@ -187,7 +187,7 @@ async def handle_gamification_content_menu(callback: CallbackQuery, session: Asy
     
     try:
         # El texto se personaliza para este menú principal de gamificación
-        text = "🎮 **Panel de Gestión de Gamificación**\n\n" \
+        text = "🎮 **Centro de Control de Gamificación**\n\n" \
                "Desde aquí puedes administrar usuarios, misiones, recompensas, " \
                "niveles, minijuegos, subastas y eventos. Elige una opción para empezar:"
         
