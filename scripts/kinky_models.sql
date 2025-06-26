@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS missions (
     reward_type VARCHAR(50) NOT NULL,
     reward_amount INTEGER NOT NULL,
     is_active BOOLEAN NOT NULL DEFAULT TRUE,
-    metadata JSONB,
+    mission_data JSONB,
     created_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITHOUT TIME ZONE DEFAULT NOW()
 );
