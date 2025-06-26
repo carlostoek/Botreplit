@@ -276,8 +276,8 @@ class MissionService:
                 record.completed_at = datetime.datetime.utcnow()
                 await self.point_service.add_points(user_id, mission.reward_points, bot=bot)
                 if bot:
-                    from utils.message_utils import get_mission_completed_message
-                    from utils.keyboard_utils import get_mission_completed_keyboard
+                    from ..utils.message_utils import get_mission_completed_message
+from ..utils.keyboard_utils import get_mission_completed_keyboardd
 
                     text = await get_mission_completed_message(mission)
                     await bot.send_message(
