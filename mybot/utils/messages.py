@@ -174,12 +174,23 @@ MISSION_MESSAGES = {
     "view_all_missions_button_text": "📋 Ver Todas las Misiones",
 }
 
+# Administrative messages used in management panels
+ADMIN_MESSAGES = {
+    "level_created": "🎉 ¡Nivel creado exitosamente! 🎉",
+    "level_updated": "✅ Nivel actualizado correctamente.",
+    "level_deleted": "🗑️ Nivel eliminado exitosamente.",
+    "reward_created": "🎉 ¡Recompensa creada correctamente!",
+    "reward_updated": "✅ Recompensa actualizada correctamente.",
+    "reward_deleted": "🗑️ Recompensa eliminada correctamente.",
+}
+
 # Aggregate all messages for backward compatibility
 BOT_MESSAGES = {
     **BUTLER_MESSAGES,
     **KINKY_MESSAGES,
     **MENU_TEXTS,
     **MISSION_MESSAGES,
+    **ADMIN_MESSAGES,
 }
 
 # Badge descriptions
