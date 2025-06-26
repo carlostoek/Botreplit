@@ -118,5 +118,37 @@ def truncate_text(text: str, max_length: int = 100) -> str:
     
     if len(text) <= max_length:
         return text
-    
+
     return text[:max_length-3] + "..."
+
+
+def escape_markdown_v2(text: str) -> str:
+    """Escape special characters for Telegram MarkdownV2."""
+    if not isinstance(text, str):
+        text = str(text)
+
+    replacements = [
+        ('\\', '\\\\'),
+        ('_', '\\_'),
+        ('*', '\\*'),
+        ('[', '\\['),
+        (']', '\\]'),
+        ('(', '\\('),
+        (')', '\\)'),
+        ('~', '\\~'),
+        ('`', '\\`'),
+        ('>', '\\>'),
+        ('#', '\\#'),
+        ('+', '\\+'),
+        ('-', '\\-'),
+        ('=', '\\='),
+        ('|', '\\|'),
+        ('{', '\\{'),
+        ('}', '\\}'),
+        ('.', '\\.'),
+        ('!', '\\!'),
+    ]
+
+    for old, new in replacements:
+        text = text.replace(old, new)
+    return text
