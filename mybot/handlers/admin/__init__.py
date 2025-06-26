@@ -9,6 +9,7 @@ from .missions_admin import router as missions_admin_router
 from .levels_admin import router as levels_admin_router
 from .rewards_admin import router as rewards_admin_router
 from .badges_admin import router as badges_admin_router
+from .lore_pieces_admin import router as lore_pieces_admin_router
 from .event_admin import router as event_admin_router
 from .admin_config import router as admin_config_router
 
@@ -24,6 +25,7 @@ __all__ = [
     "levels_admin_router",
     "rewards_admin_router",
     "badges_admin_router",
+    "lore_pieces_admin_router",
     "event_admin_router",
     "admin_config_router",
 ]

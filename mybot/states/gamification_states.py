@@ -32,3 +32,20 @@ class BadgeAdminStates(StatesGroup):
     creating_badge_emoji = State()
 
     deleting_badge = State()
+
+
+class LorePieceAdminStates(StatesGroup):
+    creating_code_name = State()
+    creating_title = State()
+    creating_description = State()
+    creating_category = State()
+    creating_is_main_story = State()
+    creating_content_type = State()
+    creating_content = State()
+
+    editing_title = State()
+    editing_description = State()
+    editing_category = State()
+    editing_is_main_story = State()
+    editing_content_type = State()
+    editing_content = State()
