@@ -170,4 +170,4 @@ async def remove_channel(callback: CallbackQuery, session: AsyncSession):
         session,
         "admin_channels",
     )
-    await callback.answer("Canal eliminado")")
+    await callback.answer("Canal eliminado")
