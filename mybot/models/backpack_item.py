@@ -13,6 +13,7 @@ class BackpackItem(AsyncAttrs, Base):
     """Mapping of items owned by a user."""
 
     __tablename__ = "backpack_items"
+    __table_args__ = {"extend_existing": True}
     user_id: Mapped[int] = mapped_column(BigInteger, ForeignKey(User.id), primary_key=True)
     pista_id: Mapped[int] = mapped_column(Integer, ForeignKey(Pista.id), primary_key=True)
     quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)

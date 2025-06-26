@@ -12,6 +12,7 @@ class Pista(AsyncAttrs, Base):
     """Collectible hints/items that users can obtain."""
 
     __tablename__ = "pistas"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     title: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)

@@ -13,6 +13,7 @@ class Mission(AsyncAttrs, Base):
     """Model for game missions."""
 
     __tablename__ = "missions"
+    __table_args__ = {"extend_existing": True}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
