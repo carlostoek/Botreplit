@@ -39,7 +39,7 @@ class MenuFactory:
     Factory class for creating menus based on user state and role.
     Centralizes menu logic and ensures consistency.
     """
-    
+
     async def create_menu(
         self, 
         menu_state: str, 
@@ -49,33 +49,33 @@ class MenuFactory:
     ) -> Tuple[str, InlineKeyboardMarkup]:
         """
         Create a menu based on the current state and user role.
-        
+
         Returns:
             Tuple[str, InlineKeyboardMarkup]: (text, keyboard)
         """
         try:
             role = await get_user_role(bot, user_id, session=session)
-            
+
             # Handle setup flow for new installations
             if menu_state.startswith("setup_") or menu_state == "admin_setup_choice": # Añadido admin_setup_choice aquí
                 return await self._create_setup_menu(menu_state, user_id, session)
-            
+
             # Handle role-based main menus
             if menu_state in ["main", "admin_main", "vip_main", "free_main"]:
                 return self._create_main_menu(role)
-            
+
             # Handle specific menu states
             return await self._create_specific_menu(menu_state, user_id, session, role)
-            
+
         except Exception as e:
             logger.error(f"Error creating menu for state {menu_state}, user {user_id}: {e}")
             return self._create_fallback_menu(role) 
-    
+
     def _create_main_menu(self, role: str) -> Tuple[str, InlineKeyboardMarkup]:
         """Create the main menu based on user role."""
         if role == "admin":
             return (
-                "🛠️ **Panel de Administración**\n\n"
+                "🛠️ **Centro de Mando**\n\n"
                 "Bienvenido al centro de control del bot. Desde aquí puedes gestionar "
                 "todos los aspectos del sistema.",
                 get_admin_main_kb()
@@ -94,7 +94,7 @@ class MenuFactory:
                 "¿Listo para una experiencia única?",
                 get_free_main_menu_kb()
             )
-    
+
     async def _create_setup_menu(
         self, 
         menu_state: str, 
@@ -223,7 +223,7 @@ class MenuFactory:
                 "No se pudo cargar el menú de configuración solicitado. Volviendo al inicio.",
                 get_setup_main_kb()
             )
-    
+
     async def _create_specific_menu(
         self, 
         menu_state: str, 
@@ -232,7 +232,7 @@ class MenuFactory:
         role: str
     ) -> Tuple[str, InlineKeyboardMarkup]:
         """Create specific menus based on state."""
-        
+
         if menu_state == "profile":
             return await create_profile_menu(user_id, session)
         elif menu_state == "missions":
@@ -243,7 +243,7 @@ class MenuFactory:
             return await create_auction_menu(user_id, session)
         elif menu_state == "ranking":
             return await create_ranking_menu(user_id, session)
-        
+
         elif menu_state == "admin_gamification_main": # Asegúrate de que este estado es reconocido si alguna otra parte lo invoca
             # Aunque el handler directo lo gestiona, si por alguna razón menu_factory
             # necesita crear este menú, podemos redirigirlo al panel admin principal
@@ -251,7 +251,7 @@ class MenuFactory:
         else:
             logger.warning(f"Unknown specific menu state: {menu_state}. Falling back to main menu for role: {role}")
             return self._create_main_menu(role)
-    
+
     def _create_fallback_menu(self, role: str = "free") -> Tuple[str, InlineKeyboardMarkup]:
         """
         Create a fallback menu when something goes wrong.
@@ -259,7 +259,7 @@ class MenuFactory:
         """
         text = "⚠️ **Error de Navegación**\n\n" \
                "Hubo un problema al cargar el menú. Por favor, intenta nuevamente."
-        
+
         if role == "admin":
             return (text, get_admin_main_kb())
         elif role == "vip":
@@ -272,13 +272,13 @@ class MenuFactory:
         Crea el texto y el teclado para la elección inicial de configuración del admin.
         Este método está diseñado para ser llamado por handlers/start.py
         """
-        
+
         builder = InlineKeyboardBuilder()
         builder.button(text="🚀 Configurar Ahora", callback_data="start_setup")
         builder.button(text="⏭️ Ir al Panel", callback_data="skip_to_admin")
         builder.button(text="📖 Ver Guía", callback_data="show_setup_guide")
         builder.adjust(1)
-        
+
         text = (
             "👋 **¡Hola, Administrador!**\n\n"
             "Parece que es la primera vez que usas este bot. "
@@ -308,4 +308,3 @@ class MenuFactory:
 
 # Global factory instance
 menu_factory = MenuFactory()
-        
