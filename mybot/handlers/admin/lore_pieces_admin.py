@@ -91,9 +91,10 @@ async def lore_piece_view_details(callback: CallbackQuery, session: AsyncSession
 async def lore_piece_create(callback: CallbackQuery, state: FSMContext):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    await callback.message.edit_text(
+    await safe_edit_message(
+        callback.message,
         "Ingresa el code_name único para la pista:",
-        reply_markup=get_back_keyboard("admin_manage_lorepieces"),
+        get_back_keyboard("admin_manage_lorepieces"),
     )
     await state.set_state(LorePieceAdminStates.creating_code_name)
     await callback.answer()
@@ -160,8 +161,10 @@ async def lore_piece_process_main_story(callback: CallbackQuery, state: FSMConte
             [InlineKeyboardButton(text="Video", callback_data="lore_piece_content_type:video")],
         ]
     )
-    await callback.message.edit_text(
-        "Selecciona el tipo de contenido:", reply_markup=kb
+    await safe_edit_message(
+        callback.message,
+        "Selecciona el tipo de contenido:",
+        kb,
     )
     await state.set_state(LorePieceAdminStates.creating_content_type)
     await callback.answer()
@@ -173,9 +176,10 @@ async def lore_piece_select_type(callback: CallbackQuery, state: FSMContext):
         return await callback.answer()
     ctype = callback.data.split(":")[1]
     await state.update_data(content_type=ctype)
-    await callback.message.edit_text(
+    await safe_edit_message(
+        callback.message,
         "Envía el contenido ahora:",
-        reply_markup=get_back_keyboard("admin_manage_lorepieces"),
+        get_back_keyboard("admin_manage_lorepieces"),
     )
     await state.set_state(LorePieceAdminStates.creating_content)
     await callback.answer()
@@ -249,7 +253,11 @@ async def lore_piece_edit_field(callback: CallbackQuery, state: FSMContext):
         "category": "Nueva categoría:",
     }
     if field in {"title", "description", "category"}:
-        await callback.message.edit_text(prompts[field], reply_markup=get_back_keyboard(f"lore_piece_edit:{code}"))
+        await safe_edit_message(
+            callback.message,
+            prompts[field],
+            get_back_keyboard(f"lore_piece_edit:{code}"),
+        )
         mapping = {
             "title": LorePieceAdminStates.editing_title,
             "description": LorePieceAdminStates.editing_description,
@@ -263,7 +271,11 @@ async def lore_piece_edit_field(callback: CallbackQuery, state: FSMContext):
                  InlineKeyboardButton(text="No", callback_data="lore_piece_edit_main_story:no")],
             ]
         )
-        await callback.message.edit_text("¿Pertenece a la historia principal?", reply_markup=kb)
+        await safe_edit_message(
+            callback.message,
+            "¿Pertenece a la historia principal?",
+            kb,
+        )
         await state.set_state(LorePieceAdminStates.editing_is_main_story)
     elif field == "content_type":
         kb = InlineKeyboardMarkup(
@@ -274,10 +286,18 @@ async def lore_piece_edit_field(callback: CallbackQuery, state: FSMContext):
                 [InlineKeyboardButton(text="Video", callback_data="lore_piece_edit_type:video")],
             ]
         )
-        await callback.message.edit_text("Selecciona el nuevo tipo de contenido:", reply_markup=kb)
+        await safe_edit_message(
+            callback.message,
+            "Selecciona el nuevo tipo de contenido:",
+            kb,
+        )
         await state.set_state(LorePieceAdminStates.editing_content_type)
     elif field == "content":
-        await callback.message.edit_text("Envía el nuevo contenido:", reply_markup=get_back_keyboard(f"lore_piece_edit:{code}"))
+        await safe_edit_message(
+            callback.message,
+            "Envía el nuevo contenido:",
+            get_back_keyboard(f"lore_piece_edit:{code}"),
+        )
         await state.set_state(LorePieceAdminStates.editing_content)
     await callback.answer()
 
