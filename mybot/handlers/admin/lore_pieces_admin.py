@@ -397,4 +397,3 @@ async def lore_piece_delete_confirm(callback: CallbackQuery, session: AsyncSessi
     await LorePieceService(session).delete_lore_piece(code)
     await callback.answer("Pista eliminada", show_alert=True)
     await show_lore_pieces_page(callback.message, session, 0)
-*** End Patch
