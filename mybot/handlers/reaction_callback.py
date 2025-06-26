@@ -68,6 +68,9 @@ async def handle_reaction_callback(
         return
 
     from services.point_service import PointService
+    from services.mission_service import MissionService
+    from services.lucien_notification_service import LucienNotificationService
+    from utils.user_roles import get_user_role
 
     points_dict = await channel_service.get_reaction_points(channel_id)
     points = float(points_dict.get(reaction_type, 0.0))

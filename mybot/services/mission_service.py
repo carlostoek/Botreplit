@@ -202,8 +202,21 @@ class MissionService:
         *,
         requires_action: bool = False,
         action_data: dict | None = None,
+        channel_restriction: str = None,  # "los_kinkys" or "el_divan"
+        unlocks_pista: str = None,  # Pista title to unlock
     ) -> Mission:
         mission_id = f"{mission_type}_{sanitize_text(name).lower().replace(' ', '_').replace('.', '').replace(',', '')}"
+        
+        # Prepare action_data with narrative-specific information
+        if not action_data:
+            action_data = {}
+        
+        if channel_restriction:
+            action_data["channel_restriction"] = channel_restriction
+        
+        if unlocks_pista:
+            action_data["unlocks_pista"] = unlocks_pista
+        
         new_mission = Mission(
             id=mission_id,
             name=sanitize_text(name),
