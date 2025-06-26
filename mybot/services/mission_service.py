@@ -56,6 +56,24 @@ class MissionService:
     async def get_mission_by_id(self, mission_id: str) -> Mission | None:
         return await self.session.get(Mission, mission_id)
 
+    async def get_active_mission(
+        self, user_id: int, channel_type: str, mission_type: str
+    ) -> Mission | None:
+        """Return the first active mission matching channel and type not yet completed."""
+        missions = await self.get_active_missions(mission_type=mission_type)
+        user = await self.session.get(User, user_id)
+        if not user:
+            return None
+        for mission in missions:
+            if mission.action_data:
+                m_channel = mission.action_data.get("channel_type")
+                if m_channel and m_channel != channel_type:
+                    continue
+            completed, _ = await self.check_mission_completion_status(user, mission)
+            if not completed:
+                return mission
+        return None
+
     async def check_mission_completion_status(self, user: User, mission: Mission, target_message_id: int = None) -> tuple[bool, str]:
         """
         Checks if a user has completed a mission for the current reset period,
