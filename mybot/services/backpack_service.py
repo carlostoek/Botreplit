@@ -4,7 +4,8 @@ import logging
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from models import BackpackItem, Pista
+from mybot.models.backpack_item import BackpackItem
+from mybot.models.pista import Pista
 
 logger = logging.getLogger(__name__)
 

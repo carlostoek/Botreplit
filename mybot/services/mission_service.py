@@ -150,7 +150,20 @@ class MissionService:
         elif mission.type == "weekly":
             user.last_weekly_mission_reset = datetime.datetime.now()
 
-        # Desbloqueo de pistas de lore vinculadas a la misión
+        # Desbloqueo de pistas del Diván vinculadas a la misión
+        unlock_pista = None
+        if mission.action_data:
+            unlock_pista = mission.action_data.get("unlocks_pista")
+        
+        if unlock_pista:
+            from mybot.services.backpack_service import BackpackService
+            backpack_service = BackpackService(self.session)
+            pista = await backpack_service.get_pista_by_title(unlock_pista)
+            if pista:
+                await backpack_service.add_item(user_id, pista.id)
+                logger.info(f"User {user_id} unlocked pista '{unlock_pista}' via mission {mission_id}")
+        
+        # Mantener compatibilidad con sistema anterior de lore
         unlock_code = getattr(mission, "unlocks_lore_piece_code", None)
         if not unlock_code and mission.action_data:
             unlock_code = mission.action_data.get("unlocks_lore_piece_code")
