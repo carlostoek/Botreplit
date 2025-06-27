@@ -22,3 +22,25 @@ async def get_session() -> async_sessionmaker[AsyncSession]:
         raise RuntimeError("Database engine not initialized. Call init_db() first.")
     async_session = async_sessionmaker(bind=_engine, class_=AsyncSession, expire_on_commit=False)
     return async_session
+
+# Simple session factory returning AsyncSession directly
+
+def get_async_session() -> AsyncSession:
+    """Return a new AsyncSession using the current engine."""
+    if _engine is None:
+        raise RuntimeError("Database engine not initialized. Call init_db() first.")
+    session_factory = async_sessionmaker(bind=_engine, class_=AsyncSession, expire_on_commit=False)
+    return session_factory()
+
+
+async def test_connection() -> bool:
+    """Check database connectivity."""
+    try:
+        engine = create_async_engine(Config.DATABASE_URL, echo=False, poolclass=NullPool)
+        async with engine.connect() as conn:
+            await conn.execute("SELECT 1")
+        await engine.dispose()
+        return True
+    except Exception:
+        return False
+

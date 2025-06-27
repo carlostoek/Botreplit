@@ -5,7 +5,7 @@ from aiogram.enums.parse_mode import ParseMode
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from database.setup import init_db, get_session
+from mybot.database import init_db, get_session, test_connection
 
 from handlers import start, free_user
 from handlers import daily_gift, minigames
@@ -33,8 +33,17 @@ from services import (
 from services.scheduler import auction_monitor_scheduler, free_channel_cleanup_scheduler
 
 
+async def startup() -> None:
+    if await test_connection():
+        print("✅ Conexión a base de datos exitosa")
+        await init_db()
+    else:
+        print("❌ Error de conexión a base de datos")
+        exit(1)
+
+
 async def main() -> None:
-    await init_db()
+    await startup()
     Session = await get_session()
 
     logging.basicConfig(level=logging.INFO)
