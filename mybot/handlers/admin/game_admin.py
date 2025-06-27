@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 import datetime
+import logging
 
 from utils.user_roles import is_admin
 from utils.menu_utils import update_menu, send_temporary_reply
@@ -308,27 +309,72 @@ async def admin_process_reward(message: Message, state: FSMContext):
 
 @router.message(AdminMissionStates.creating_mission_duration)
 async def admin_process_duration(message: Message, state: FSMContext, session: AsyncSession):
+    """Procesa la duración de la misión y la crea en la base de datos."""
+
     if not is_admin(message.from_user.id):
+        await message.answer("❌ No tienes permisos de administrador")
         return
+
+    # Validar entrada de días
     try:
         days = int(message.text)
+        if days < 0:
+            await message.answer("❌ La duración debe ser un número positivo")
+            return
     except ValueError:
-        await message.answer("Ingresa un número válido de días:")
+        await message.answer("❌ Ingresa un número válido de días:")
         return
+
     data = await state.get_data()
-    mission_service = MissionService(session)
-    await mission_service.create_mission(
-        data["name"],
-        data["description"],
-        data["type"],
-        data["target"],
-        data["reward"],
-        days,
-    )
-    await message.answer(
-        "✅ Misión creada correctamente", reply_markup=get_admin_content_missions_keyboard()
-    )
-    await state.clear()
+
+    # Asegurar que contamos con todos los campos requeridos
+    required_fields = ["name", "description", "type", "target", "reward"]
+    missing_fields = [f for f in required_fields if f not in data]
+    if missing_fields:
+        logging.error(f"Missing required fields: {missing_fields}")
+        await message.answer("❌ Error: faltan datos de la misión. Reinicia el proceso.")
+        await state.clear()
+        return
+
+    # Crear misión dentro de una transacción explícita
+    try:
+        from mybot.models.mission import Mission
+        from services.mission_service import sanitize_text
+
+        async with session.begin():
+            mission_id = f"{data['type']}_{sanitize_text(data['name']).lower().replace(' ', '_')}"
+
+            new_mission = Mission(
+                id=mission_id,
+                name=sanitize_text(data["name"]),
+                description=sanitize_text(data["description"]),
+                reward_points=int(data["reward"]),
+                type=data["type"],
+                target_value=int(data["target"]),
+                duration_days=days,
+                requires_action=data.get("requires_action", False),
+                action_data=data.get("action_data", {}),
+                unlocks_lore_piece_code=data.get("unlocks_pista"),
+                is_active=True,
+            )
+
+            session.add(new_mission)
+            await session.flush()
+
+        await message.answer(
+            f"✅ Misión '{new_mission.name}' creada correctamente!\n🆔 ID: {new_mission.id}",
+            reply_markup=get_admin_content_missions_keyboard(),
+        )
+        await state.clear()
+        logging.info(f"Admin {message.from_user.id} created mission: {new_mission.id}")
+
+    except Exception as e:
+        logging.error(f"Error creating mission: {e}", exc_info=True)
+        await message.answer(
+            "❌ Error al crear la misión. Por favor, inténtalo de nuevo.",
+            reply_markup=get_admin_content_missions_keyboard(),
+        )
+        await state.clear()
 
 
 @router.callback_query(F.data == "admin_toggle_mission")
@@ -1232,4 +1278,18 @@ async def delete_level(
         BOT_MESSAGES["level_deleted"], reply_markup=get_admin_content_levels_keyboard()
     )
     await callback.answer()
+
+
+async def debug_mission_creation(data: dict, days: int) -> None:
+    """Helper para depurar la creación de misiones."""
+    logging.debug(f"Creating mission with data: {data}")
+    logging.debug(f"Duration: {days} days")
+
+    # Validaciones adicionales para detectar problemas temprano
+    assert isinstance(data.get("name"), str), "Name must be string"
+    assert isinstance(data.get("description"), str), "Description must be string"
+    assert isinstance(data.get("type"), str), "Type must be string"
+    assert isinstance(int(data.get("target", 0)), int), "Target must be convertible to int"
+    assert isinstance(int(data.get("reward", 0)), int), "Reward must be convertible to int"
+    assert isinstance(days, int), "Days must be int"
 
