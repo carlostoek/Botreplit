@@ -5,7 +5,7 @@ from aiogram.enums.parse_mode import ParseMode
 from aiogram.client.bot import DefaultBotProperties
 from aiogram.fsm.storage.memory import MemoryStorage
 
-from .database.setup import init_db, get_session
+from database.setup import init_db, get_session
 
 from .handlers import start, free_user
 from .handlers import daily_gift, minigames
