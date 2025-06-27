@@ -1,7 +1,7 @@
 # services/mission_service.py
 import datetime
 import random
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from sqlalchemy import select, update
 from database.models import (
     Mission,
@@ -21,10 +21,20 @@ logger = logging.getLogger(__name__)
 MISSION_PLACEHOLDER: list = []
 
 class MissionService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
+    def __init__(self, session: AsyncSession | async_sessionmaker[AsyncSession]):
+        """Accept either an AsyncSession or a session factory."""
+        if isinstance(session, AsyncSession):
+            self.session = session
+            self.session_factory: async_sessionmaker[AsyncSession] | None = None
+        else:
+            self.session = None
+            self.session_factory = session
         from services.point_service import PointService
-        self.point_service = PointService(session)
+        if self.session is not None:
+            self.point_service = PointService(self.session)
+        else:
+            # PointService will be initialised lazily when needed
+            self.point_service = None
 
     async def get_active_missions(self, user_id: int = None, mission_type: str = None) -> list[Mission]:
         """
@@ -247,15 +257,35 @@ class MissionService:
             action_data=action_data,
             is_active=True,
         )
-        self.session.add(new_mission)
-        try:
-            await self.session.commit()
-            await self.session.refresh(new_mission)
-        except Exception as e:
-            await self.session.rollback()
-            logger.error(f"Error creating mission {name}: {e}")
-            raise
-        return new_mission
+
+        # Use a new session if a session factory is available
+        if self.session_factory is not None:
+            async with self.session_factory() as session:
+                try:
+                    session.add(new_mission)
+                    await session.commit()
+                    await session.refresh(new_mission)
+                    logger.info(
+                        f"Mission {name} created successfully with ID: {mission_id}"
+                    )
+                    return new_mission
+                except Exception as e:
+                    await session.rollback()
+                    logger.error(f"Error creating mission {name}: {e}")
+                    raise
+        else:
+            self.session.add(new_mission)
+            try:
+                await self.session.commit()
+                await self.session.refresh(new_mission)
+                logger.info(
+                    f"Mission {name} created successfully with ID: {mission_id}"
+                )
+            except Exception as e:
+                await self.session.rollback()
+                logger.error(f"Error creating mission {name}: {e}")
+                raise
+            return new_mission
 
     async def toggle_mission_status(self, mission_id: str, status: bool) -> bool:
         mission = await self.session.get(Mission, mission_id)
