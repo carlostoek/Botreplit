@@ -1,4 +1,8 @@
 # utils/message_utils.py
+from aiogram.types import Message, InlineKeyboardMarkup
+from aiogram.exceptions import TelegramBadRequest
+import logging
+# Use absolute imports to allow running bot.py directly
 from database.models import User, Mission, Reward, UserAchievement
 from services.level_service import LevelService
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +11,43 @@ from services.achievement_service import ACHIEVEMENTS
 from utils.messages import BOT_MESSAGES
 from utils.text_utils import anonymize_username
 import datetime
+
+
+async def safe_edit_message(
+    message: Message,
+    text: str,
+    reply_markup: InlineKeyboardMarkup | None = None,
+) -> None:
+    """Safely edit a message; send a new one if editing fails."""
+    logger = logging.getLogger(__name__)
+
+    # Avoid unnecessary edit requests if nothing changed
+    if message.text == text and message.reply_markup == reply_markup:
+        logger.debug("Safe edit: No change detected, skipping edit for message %s", message.message_id)
+        return
+    try:
+        await message.edit_text(text, reply_markup=reply_markup)
+        logger.debug("Safe edit: Message %s edited successfully.", message.message_id)
+    except TelegramBadRequest as exc:
+        logger.warning(
+            "TelegramBadRequest caught while editing message %s: %s. Sending new message instead.",
+            message.message_id,
+            exc,
+        )
+        try:
+            await message.answer(text, reply_markup=reply_markup)
+        except Exception as new_exc:
+            logger.error(
+                "Failed to send new message after edit failed for message %s: %s",
+                message.message_id,
+                new_exc,
+            )
+    except Exception as exc:
+        logger.error(
+            "An unexpected error occurred during message edit for message %s: %s",
+            message.message_id,
+            exc,
+        )
 
 
 async def get_profile_message(

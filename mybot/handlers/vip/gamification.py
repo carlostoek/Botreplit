@@ -406,6 +406,30 @@ async def show_ranking_from_reply_keyboard(message: Message, session: AsyncSessi
         return
 
 
+@router.callback_query(F.data == "menu:ranking")
+async def show_ranking_from_inline(callback: CallbackQuery, session: AsyncSession):
+    """Display the ranking when triggered from inline buttons."""
+    user_id = callback.from_user.id
+    role = await get_user_role(callback.bot, user_id, session=session)
+
+    if role not in ["vip", "admin"]:
+        await callback.answer(
+            "Esta función está disponible solo para miembros VIP.",
+            show_alert=True,
+        )
+        return
+
+    try:
+        text, keyboard = await menu_factory.create_menu("ranking", user_id, session, callback.bot)
+        await menu_manager.update_menu(callback, text, keyboard, session, "ranking")
+    except Exception as e:
+        logger.error(f"Error showing ranking for user {user_id}: {e}")
+        await callback.answer("Error al cargar el ranking", show_alert=True)
+        return
+
+    await callback.answer()
+
+
 @router.message(Command("weeklyranking"))
 async def show_weekly_ranking(message: Message, session: AsyncSession, bot: Bot):
     user_id = message.from_user.id

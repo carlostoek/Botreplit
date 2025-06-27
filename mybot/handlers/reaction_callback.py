@@ -8,6 +8,9 @@ from services.message_service import MessageService
 from services.channel_service import ChannelService
 from services.message_registry import validate_message
 from utils.messages import BOT_MESSAGES
+from lexicon.lucien_messages import LUCIEN_MESSAGES
+import random
+from utils.config import FREE_CHANNEL_ID
 
 router = Router()
 logger = logging.getLogger(__name__)
@@ -65,6 +68,9 @@ async def handle_reaction_callback(
         return
 
     from services.point_service import PointService
+    from services.mission_service import MissionService
+    from services.lucien_notification_service import LucienNotificationService
+    from utils.user_roles import get_user_role
 
     points_dict = await channel_service.get_reaction_points(channel_id)
     points = float(points_dict.get(reaction_type, 0.0))
@@ -74,9 +80,33 @@ async def handle_reaction_callback(
     mission_service = MissionService(session)
     await mission_service.update_progress(callback.from_user.id, "reaction", bot=bot)
 
+    channel_type = "free" if channel_id == FREE_CHANNEL_ID else "vip"
+    mission = await mission_service.get_active_mission(
+        callback.from_user.id, channel_type, "reaction"
+    )
+    if mission:
+        completed, _ = await mission_service.complete_mission(
+            callback.from_user.id, mission.id, bot=bot
+        )
+        if completed:
+            from services.backpack_service import BackpackService
+
+            backpack = BackpackService(session)
+            if not await backpack.has_any_item(callback.from_user.id):
+                await backpack.give_initial_pista(callback.from_user.id)
+            else:
+                await backpack.give_daily_pista(callback.from_user.id)
+
     await service.update_reaction_markup(chat_id, message_id)
     await callback.answer(BOT_MESSAGES["reaction_registered_points"].format(points=points))
     await bot.send_message(
         callback.from_user.id,
         BOT_MESSAGES["reaction_registered_points"].format(points=points),
+    )
+    # Send Lucien's gamified notification
+    lucien_service = LucienNotificationService(session)
+    await lucien_service.send_reaction_notification(
+        bot, 
+        callback.from_user.id, 
+        points_earned=int(points)
     )

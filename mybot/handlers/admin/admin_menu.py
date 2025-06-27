@@ -30,6 +30,9 @@ from .config_menu import router as config_router
 from .channel_admin import router as channel_admin_router
 from .subscription_plans import router as subscription_plans_router
 from .game_admin import router as game_admin_router
+from .missions_admin import router as missions_admin_router
+from .levels_admin import router as levels_admin_router
+from .lore_pieces_admin import router as lore_pieces_admin_router
 from .event_admin import router as event_admin_router
 from .admin_config import router as admin_config_router
 
@@ -39,6 +42,9 @@ router.include_router(config_router)
 router.include_router(channel_admin_router)
 router.include_router(subscription_plans_router)
 router.include_router(game_admin_router)
+router.include_router(missions_admin_router)
+router.include_router(levels_admin_router)
+router.include_router(lore_pieces_admin_router)
 router.include_router(event_admin_router)
 router.include_router(admin_config_router)
 
@@ -181,7 +187,7 @@ async def handle_gamification_content_menu(callback: CallbackQuery, session: Asy
     
     try:
         # El texto se personaliza para este menú principal de gamificación
-        text = "🎮 **Panel de Gestión de Gamificación**\n\n" \
+        text = "🎮 **Centro de Control de Gamificación**\n\n" \
                "Desde aquí puedes administrar usuarios, misiones, recompensas, " \
                "niveles, minijuegos, subastas y eventos. Elige una opción para empezar:"
         
@@ -211,9 +217,11 @@ async def handle_kinky_game_button_from_main(callback: CallbackQuery, session: A
     if not is_admin(callback.from_user.id):
         return await callback.answer("Acceso denegado", show_alert=True)
     
-    # Simplemente llamamos al handler que ya muestra el menú completo de gamificación
-    await handle_gamification_content_menu(callback, session)
-    # No es necesario un callback.answer() aquí porque handle_gamification_content_menu ya lo hace.
+    # Mostrar el panel de administración de juego kinky
+    text = "Centro de Control del Juego Kinky. Selecciona una opción:"
+    keyboard = get_admin_manage_content_keyboard()
+    await callback.message.edit_text(text, reply_markup=keyboard)
+    await callback.answer()
 
 
 @router.callback_query(F.data == "admin_bot_config")

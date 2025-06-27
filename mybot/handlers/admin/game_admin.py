@@ -4,6 +4,7 @@ from aiogram.fsm.context import FSMContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 import datetime
+import logging
 
 from utils.user_roles import is_admin
 from utils.menu_utils import update_menu, send_temporary_reply
@@ -22,6 +23,8 @@ from utils.keyboard_utils import (
     get_badge_selection_keyboard,
     get_reward_type_keyboard,
 )
+from .missions_admin import show_missions_page
+from .levels_admin import show_levels_page
 from utils.admin_state import (
     AdminUserStates,
     AdminMissionStates,
@@ -33,11 +36,14 @@ from utils.admin_state import (
 from services.mission_service import MissionService
 from services.reward_service import RewardService
 from services.level_service import LevelService
-from database.models import User, Mission
+from database.models import User, Mission, Level
 from services.point_service import PointService
 from services.config_service import ConfigService
 from services.badge_service import BadgeService
 from utils.messages import BOT_MESSAGES
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -205,13 +211,7 @@ async def process_search_user(message: Message, state: FSMContext, session: Asyn
 async def admin_content_missions(callback: CallbackQuery, session: AsyncSession):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    await update_menu(
-        callback,
-        "📌 Misiones - Selecciona una opción:",
-        get_admin_content_missions_keyboard(),
-        session,
-        "admin_content_missions",
-    )
+    await show_missions_page(callback.message, session, 0)
     await callback.answer()
 
 
@@ -309,31 +309,56 @@ async def admin_process_reward(message: Message, state: FSMContext):
     await message.answer("⏳ Duración (en días, 0 para permanente)")
     await state.set_state(AdminMissionStates.creating_mission_duration)
 
-
 @router.message(AdminMissionStates.creating_mission_duration)
-async def admin_process_duration(message: Message, state: FSMContext, session: AsyncSession):
+ 
+async def admin_process_duration(message: Message, state: FSMContext):
+
     if not is_admin(message.from_user.id):
+        await message.answer("❌ No tienes permisos de administrador")
         return
+
+
+
     try:
         days = int(message.text)
+        if days < 0:
+            await message.answer("❌ La duración debe ser un número positivo")
+            return
     except ValueError:
-        await message.answer("Ingresa un número válido de días:")
+        await message.answer("❌ Ingresa un número válido de días:")
         return
-    data = await state.get_data()
-    mission_service = MissionService(session)
-    await mission_service.create_mission(
-        data["name"],
-        data["description"],
-        data["type"],
-        data["target"],
-        data["reward"],
-        days,
-    )
-    await message.answer(
-        "✅ Misión creada correctamente", reply_markup=get_admin_content_missions_keyboard()
-    )
-    await state.clear()
 
+    data = await state.get_data()
+
+ 
+    try:
+        from database import get_async_session
+        from services.mission_service import MissionService
+
+        mission_service = MissionService(get_async_session)
+
+        mission = await mission_service.create_mission(
+            name=data["name"],
+            description=data["description"],
+            mission_type=data["type"],
+            target_value=int(data["target"]),
+            reward_points=int(data["reward"]),
+            duration_days=days,
+        )
+
+        await message.answer(
+            f"✅ Misión '{mission.name}' creada correctamente!\n" f"🆔 ID: {mission.id}",
+            reply_markup=get_admin_content_missions_keyboard(),
+        )
+        await state.clear()
+
+    except Exception as e:
+        logger.error(f"Error creating mission: {e}")
+        await message.answer(
+            "❌ Error al crear la misión. Inténtalo de nuevo.",
+            reply_markup=get_admin_content_missions_keyboard(),
+        )
+        await state.clear()
 
 @router.callback_query(F.data == "admin_toggle_mission")
 async def admin_toggle_mission_menu(callback: CallbackQuery, session: AsyncSession):
@@ -979,17 +1004,7 @@ async def finish_edit_reward(callback: CallbackQuery, state: FSMContext, session
 async def admin_levels_view(callback: CallbackQuery, session: AsyncSession):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    service = LevelService(session)
-    levels = await service.list_levels()
-    if levels:
-        lines = [
-            f"{lvl.level_id}. {lvl.name} - {lvl.min_points} pts ({lvl.reward or '-'} )"
-            for lvl in levels
-        ]
-        text = "\n".join(lines)
-    else:
-        text = "No hay niveles definidos."
-    await callback.message.edit_text(text, reply_markup=get_back_keyboard("admin_content_levels"))
+    await show_levels_page(callback.message, session, 0)
     await callback.answer()
 
 
@@ -1097,10 +1112,16 @@ async def admin_level_edit(callback: CallbackQuery, session: AsyncSession):
 
 
 @router.callback_query(F.data.startswith("edit_level_"))
-async def start_edit_level(callback: CallbackQuery, state: FSMContext, session: AsyncSession):
+async def start_edit_level(
+    callback: CallbackQuery,
+    state: FSMContext,
+    session: AsyncSession,
+    level_id: int | None = None,
+):
+    """Initiate the level editing conversation."""
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    lvl_id = int(callback.data.split("edit_level_")[-1])
+    lvl_id = level_id if level_id is not None else int(callback.data.split("edit_level_")[-1])
     level = await session.get(Level, lvl_id)
     if not level:
         await callback.answer("Nivel no encontrado", show_alert=True)
@@ -1192,10 +1213,14 @@ async def admin_level_delete(callback: CallbackQuery, session: AsyncSession):
 
 
 @router.callback_query(F.data.startswith("del_level_"))
-async def confirm_del_level(callback: CallbackQuery, session: AsyncSession):
+async def confirm_del_level(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    level_id: int | None = None,
+):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    lvl_id = int(callback.data.split("del_level_")[-1])
+    lvl_id = level_id if level_id is not None else int(callback.data.split("del_level_")[-1])
     service = LevelService(session)
     levels = await service.list_levels()
     if len(levels) <= 1:
@@ -1218,10 +1243,14 @@ async def confirm_del_level(callback: CallbackQuery, session: AsyncSession):
 
 
 @router.callback_query(F.data.startswith("confirm_del_level_"))
-async def delete_level(callback: CallbackQuery, session: AsyncSession):
+async def delete_level(
+    callback: CallbackQuery,
+    session: AsyncSession,
+    level_id: int | None = None,
+):
     if not is_admin(callback.from_user.id):
         return await callback.answer()
-    lvl_id = int(callback.data.split("confirm_del_level_")[-1])
+    lvl_id = level_id if level_id is not None else int(callback.data.split("confirm_del_level_")[-1])
     service = LevelService(session)
     levels = await service.list_levels()
     if len(levels) <= 1:
@@ -1232,4 +1261,18 @@ async def delete_level(callback: CallbackQuery, session: AsyncSession):
         BOT_MESSAGES["level_deleted"], reply_markup=get_admin_content_levels_keyboard()
     )
     await callback.answer()
+
+
+async def debug_mission_creation(data: dict, days: int) -> None:
+    """Helper para depurar la creación de misiones."""
+    logging.debug(f"Creating mission with data: {data}")
+    logging.debug(f"Duration: {days} days")
+
+    # Validaciones adicionales para detectar problemas temprano
+    assert isinstance(data.get("name"), str), "Name must be string"
+    assert isinstance(data.get("description"), str), "Description must be string"
+    assert isinstance(data.get("type"), str), "Type must be string"
+    assert isinstance(int(data.get("target", 0)), int), "Target must be convertible to int"
+    assert isinstance(int(data.get("reward", 0)), int), "Reward must be convertible to int"
+    assert isinstance(days, int), "Days must be int"
 

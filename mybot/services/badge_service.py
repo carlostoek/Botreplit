@@ -63,3 +63,34 @@ class BadgeService:
                 if bot:
                     text = f"🏅 Has obtenido la insignia {badge.emoji or ''} {badge.name}!"
                     await bot.send_message(user.id, text)
+
+    async def update_badge(
+        self,
+        badge_id: int,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        requirement: str | None = None,
+        emoji: str | None = None,
+    ) -> bool:
+        badge = await self.session.get(Badge, badge_id)
+        if not badge:
+            return False
+        if name is not None:
+            badge.name = name.strip()
+        if description is not None:
+            badge.description = description.strip()
+        if requirement is not None:
+            badge.requirement = requirement.strip()
+        if emoji is not None:
+            badge.emoji = emoji
+        await self.session.commit()
+        return True
+
+    async def toggle_badge_status(self, badge_id: int, status: bool) -> bool:
+        badge = await self.session.get(Badge, badge_id)
+        if badge:
+            badge.is_active = status
+            await self.session.commit()
+            return True
+        return False

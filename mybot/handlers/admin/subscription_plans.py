@@ -15,7 +15,7 @@ from keyboards.tarifas_kb import (
 from keyboards.common import get_back_kb
 from utils.menu_utils import send_temporary_reply, update_menu
 from database.models import Tariff
-from utils.text_utils import sanitize_text
+from utils.text_utils import sanitize_text, escape_markdown_v2
 import logging
 
 logger = logging.getLogger(__name__)
@@ -32,7 +32,10 @@ async def config_tarifas(callback: CallbackQuery, session: AsyncSession):
     tariffs = result.scalars().all()
     
     if tariffs:
-        lines = [f"• **{t.name}**: {t.duration_days} días - ${t.price}" for t in tariffs]
+        lines = [
+            f"• **{escape_markdown_v2(t.name)}**: {t.duration_days} días - ${t.price}"
+            for t in tariffs
+        ]
         text = "💳 **Tarifas VIP configuradas:**\n\n" + "\n".join(lines)
     else:
         text = "💳 **Tarifas VIP**\n\nNo hay tarifas configuradas."
@@ -56,7 +59,7 @@ async def tariff_options(callback: CallbackQuery, session: AsyncSession):
         return
 
     text = (
-        f"**{tariff.name}**\n"
+        f"**{escape_markdown_v2(tariff.name)}**\n"
         f"Duración: {tariff.duration_days} días\n"
         f"Precio: ${tariff.price}\n\n"
         "Elige una opción:"
@@ -262,7 +265,7 @@ async def tariff_name(message: Message, state: FSMContext, session: AsyncSession
     
     success_msg = (
         f"✅ **Tarifa creada exitosamente**\n\n"
-        f"📋 **Nombre:** {tariff.name}\n"
+        f"📋 **Nombre:** {escape_markdown_v2(tariff.name)}\n"
         f"⏱️ **Duración:** {tariff.duration_days} días\n"
         f"💰 **Precio:** ${tariff.price}"
     )

@@ -92,6 +92,17 @@ class AdminMissionStates(StatesGroup):
     creating_mission_duration = State()
 
 
+class MissionAdminStates(StatesGroup):
+    """States for editing existing missions."""
+
+    editing_name = State()
+    editing_description = State()
+    editing_type = State()
+    editing_target = State()
+    editing_reward = State()
+    editing_duration = State()
+
+
 class AdminVipMissionStates(StatesGroup):
     """Simplified mission creation flow from the VIP config menu."""
 
