@@ -41,6 +41,9 @@ from services.point_service import PointService
 from services.config_service import ConfigService
 from services.badge_service import BadgeService
 from utils.messages import BOT_MESSAGES
+import logging
+
+logger = logging.getLogger(__name__)
 
 router = Router()
 
@@ -306,16 +309,16 @@ async def admin_process_reward(message: Message, state: FSMContext):
     await message.answer("⏳ Duración (en días, 0 para permanente)")
     await state.set_state(AdminMissionStates.creating_mission_duration)
 
-
 @router.message(AdminMissionStates.creating_mission_duration)
-async def admin_process_duration(message: Message, state: FSMContext, session: AsyncSession):
-    """Procesa la duración de la misión y la crea en la base de datos."""
+ 
+async def admin_process_duration(message: Message, state: FSMContext):
 
     if not is_admin(message.from_user.id):
         await message.answer("❌ No tienes permisos de administrador")
         return
 
-    # Validar entrada de días
+
+
     try:
         days = int(message.text)
         if days < 0:
@@ -327,6 +330,37 @@ async def admin_process_duration(message: Message, state: FSMContext, session: A
 
     data = await state.get_data()
 
+ 
+    try:
+        from mybot.database import get_async_session
+        from mybot.services.mission_service import MissionService
+
+        mission_service = MissionService(get_async_session)
+
+        mission = await mission_service.create_mission(
+            name=data["name"],
+            description=data["description"],
+            mission_type=data["type"],
+            target_value=int(data["target"]),
+            reward_points=int(data["reward"]),
+            duration_days=days,
+        )
+
+        await message.answer(
+            f"✅ Misión '{mission.name}' creada correctamente!\n" f"🆔 ID: {mission.id}",
+            reply_markup=get_admin_content_missions_keyboard(),
+        )
+        await state.clear()
+
+    except Exception as e:
+        logger.error(f"Error creating mission: {e}")
+        await message.answer(
+            "❌ Error al crear la misión. Inténtalo de nuevo.",
+            reply_markup=get_admin_content_missions_keyboard(),
+        )
+        await state.clear()
+
+=======
     # Asegurar que contamos con todos los campos requeridos
     required_fields = ["name", "description", "type", "target", "reward"]
     missing_fields = [f for f in required_fields if f not in data]
@@ -350,31 +384,7 @@ async def admin_process_duration(message: Message, state: FSMContext, session: A
                 description=sanitize_text(data["description"]),
                 reward_points=int(data["reward"]),
                 type=data["type"],
-                target_value=int(data["target"]),
-                duration_days=days,
-                requires_action=data.get("requires_action", False),
-                action_data=data.get("action_data", {}),
-                unlocks_lore_piece_code=data.get("unlocks_pista"),
-                is_active=True,
-            )
-
-            session.add(new_mission)
-            await session.flush()
-
-        await message.answer(
-            f"✅ Misión '{new_mission.name}' creada correctamente!\n🆔 ID: {new_mission.id}",
-            reply_markup=get_admin_content_missions_keyboard(),
-        )
-        await state.clear()
-        logging.info(f"Admin {message.from_user.id} created mission: {new_mission.id}")
-
-    except Exception as e:
-        logging.error(f"Error creating mission: {e}", exc_info=True)
-        await message.answer(
-            "❌ Error al crear la misión. Por favor, inténtalo de nuevo.",
-            reply_markup=get_admin_content_missions_keyboard(),
-        )
-        await state.clear()
+             
 
 
 @router.callback_query(F.data == "admin_toggle_mission")
