@@ -1,6 +1,13 @@
 import asyncio
+import sys
+import os
 from sqlalchemy import select
-from mybot.database.setup import init_db, get_session
+
+# Ensure project modules can be imported when running this script directly
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(BASE_DIR, "mybot"))
+
+from database.setup import init_db, get_session
 from models import Pista
 
 INITIAL_PISTA = {

@@ -1,9 +1,15 @@
 import asyncio
+import sys
+import os
 
-from mybot.database.setup import init_db, get_session
-from mybot.services.achievement_service import AchievementService
-from mybot.services.level_service import LevelService
-from mybot.services.mission_service import MissionService
+# Ensure project modules can be imported when running this script directly
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(BASE_DIR, "mybot"))
+
+from database.setup import init_db, get_session
+from services.achievement_service import AchievementService
+from services.level_service import LevelService
+from services.mission_service import MissionService
 
 DEFAULT_MISSIONS = [
     {
