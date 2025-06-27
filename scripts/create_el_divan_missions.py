@@ -8,13 +8,14 @@ import asyncio
 import sys
 import os
 
-# Add parent directory to path to import modules
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# Add project root (mybot directory) to path to import modules
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(os.path.join(BASE_DIR, "mybot"))
 
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
-from mybot.services.mission_service import MissionService
-from mybot.utils.config import Config
+from services.mission_service import MissionService
+from utils.config import Config
 
 async def create_el_divan_missions():
     """Create narrative-specific missions for El Diván game."""

@@ -332,8 +332,8 @@ async def admin_process_duration(message: Message, state: FSMContext):
 
  
     try:
-        from mybot.database import get_async_session
-        from mybot.services.mission_service import MissionService
+        from database import get_async_session
+        from services.mission_service import MissionService
 
         mission_service = MissionService(get_async_session)
 
@@ -359,33 +359,6 @@ async def admin_process_duration(message: Message, state: FSMContext):
             reply_markup=get_admin_content_missions_keyboard(),
         )
         await state.clear()
-
-=======
-    # Asegurar que contamos con todos los campos requeridos
-    required_fields = ["name", "description", "type", "target", "reward"]
-    missing_fields = [f for f in required_fields if f not in data]
-    if missing_fields:
-        logging.error(f"Missing required fields: {missing_fields}")
-        await message.answer("❌ Error: faltan datos de la misión. Reinicia el proceso.")
-        await state.clear()
-        return
-
-    # Crear misión dentro de una transacción explícita
-    try:
-        from mybot.models.mission import Mission
-        from services.mission_service import sanitize_text
-
-        async with session.begin():
-            mission_id = f"{data['type']}_{sanitize_text(data['name']).lower().replace(' ', '_')}"
-
-            new_mission = Mission(
-                id=mission_id,
-                name=sanitize_text(data["name"]),
-                description=sanitize_text(data["description"]),
-                reward_points=int(data["reward"]),
-                type=data["type"],
-             
-
 
 @router.callback_query(F.data == "admin_toggle_mission")
 async def admin_toggle_mission_menu(callback: CallbackQuery, session: AsyncSession):

@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import select, update, delete
-from mybot.models.mission import Mission
+from models.mission import Mission
 import logging
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
