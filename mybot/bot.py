@@ -7,30 +7,30 @@ from aiogram.fsm.storage.memory import MemoryStorage
 
 from database.setup import init_db, get_session
 
-from .handlers import start, free_user
-from .handlers import daily_gift, minigames
-from .handlers.channel_access import router as channel_access_router
-from .handlers.user import start_token
-from .handlers.vip import menu as vip
-from .handlers.vip import gamification
-from .handlers.vip.auction_user import router as auction_user_router
-from .handlers.reaction_callback import router as reaction_callback_router
-from .handlers.admin import admin_router
-from .handlers.admin.auction_admin import router as auction_admin_router
-from .handlers.lore_handlers import router as lore_router
+from handlers import start, free_user
+from handlers import daily_gift, minigames
+from handlers.channel_access import router as channel_access_router
+from handlers.user import start_token
+from handlers.vip import menu as vip
+from handlers.vip import gamification
+from handlers.vip.auction_user import router as auction_user_router
+from handlers.reaction_callback import router as reaction_callback_router
+from handlers.admin import admin_router
+from handlers.admin.auction_admin import router as auction_admin_router
+from handlers.lore_handlers import router as lore_router
 
-from .handlers import setup as setup_handlers # ¡IMPORTACIÓN CLAVE!
+from handlers import setup as setup_handlers # ¡IMPORTACIÓN CLAVE!
 
-from .handlers.free_channel_admin import router as free_channel_admin_router
-from .handlers.publication_test import router as publication_test_router
+from handlers.free_channel_admin import router as free_channel_admin_router
+from handlers.publication_test import router as publication_test_router
 
-from .utils.config import BOT_TOKEN, VIP_CHANNEL_ID
-from .services import (
+from utils.config import BOT_TOKEN, VIP_CHANNEL_ID
+from services import (
     channel_request_scheduler,
     vip_subscription_scheduler,
     vip_membership_scheduler,
 )
-from .services.scheduler import auction_monitor_scheduler, free_channel_cleanup_scheduler
+from services.scheduler import auction_monitor_scheduler, free_channel_cleanup_scheduler
 
 
 async def main() -> None:
@@ -59,7 +59,7 @@ async def main() -> None:
     dp.poll_answer.outer_middleware(session_middleware_factory(Session, bot))
     dp.message_reaction.outer_middleware(session_middleware_factory(Session, bot))
 
-    from .middlewares import PointsMiddleware, UserRegistrationMiddleware
+    from middlewares import PointsMiddleware, UserRegistrationMiddleware
     user_reg_mw = UserRegistrationMiddleware()
     dp.message.outer_middleware(user_reg_mw)
     dp.callback_query.outer_middleware(user_reg_mw)

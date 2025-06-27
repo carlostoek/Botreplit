@@ -150,7 +150,20 @@ class MissionService:
         elif mission.type == "weekly":
             user.last_weekly_mission_reset = datetime.datetime.now()
 
-        # Desbloqueo de pistas de lore vinculadas a la misión
+        # Desbloqueo de pistas del Diván vinculadas a la misión
+        unlock_pista = None
+        if mission.action_data:
+            unlock_pista = mission.action_data.get("unlocks_pista")
+        
+        if unlock_pista:
+            from services.backpack_service import BackpackService
+            backpack_service = BackpackService(self.session)
+            pista = await backpack_service.get_pista_by_title(unlock_pista)
+            if pista:
+                await backpack_service.add_item(user_id, pista.id)
+                logger.info(f"User {user_id} unlocked pista '{unlock_pista}' via mission {mission_id}")
+        
+        # Mantener compatibilidad con sistema anterior de lore
         unlock_code = getattr(mission, "unlocks_lore_piece_code", None)
         if not unlock_code and mission.action_data:
             unlock_code = mission.action_data.get("unlocks_lore_piece_code")
@@ -207,8 +220,21 @@ class MissionService:
         *,
         requires_action: bool = False,
         action_data: dict | None = None,
+        channel_restriction: str = None,  # "los_kinkys" or "el_divan"
+        unlocks_pista: str = None,  # Pista title to unlock
     ) -> Mission:
         mission_id = f"{mission_type}_{sanitize_text(name).lower().replace(' ', '_').replace('.', '').replace(',', '')}"
+        
+        # Prepare action_data with narrative-specific information
+        if not action_data:
+            action_data = {}
+        
+        if channel_restriction:
+            action_data["channel_restriction"] = channel_restriction
+        
+        if unlocks_pista:
+            action_data["unlocks_pista"] = unlocks_pista
+        
         new_mission = Mission(
             id=mission_id,
             name=sanitize_text(name),

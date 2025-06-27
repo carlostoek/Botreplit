@@ -187,7 +187,7 @@ async def handle_gamification_content_menu(callback: CallbackQuery, session: Asy
     
     try:
         # El texto se personaliza para este menú principal de gamificación
-        text = "🎮 **Panel de Gestión de Gamificación**\n\n" \
+        text = "🎮 **Centro de Control de Gamificación**\n\n" \
                "Desde aquí puedes administrar usuarios, misiones, recompensas, " \
                "niveles, minijuegos, subastas y eventos. Elige una opción para empezar:"
         
@@ -218,7 +218,7 @@ async def handle_kinky_game_button_from_main(callback: CallbackQuery, session: A
         return await callback.answer("Acceso denegado", show_alert=True)
     
     # Mostrar el panel de administración de juego kinky
-    text = "Panel de Administración del Juego Kinky. Selecciona una opción:"
+    text = "Centro de Control del Juego Kinky. Selecciona una opción:"
     keyboard = get_admin_manage_content_keyboard()
     await callback.message.edit_text(text, reply_markup=keyboard)
     await callback.answer()

@@ -68,6 +68,9 @@ async def handle_reaction_callback(
         return
 
     from services.point_service import PointService
+    from services.mission_service import MissionService
+    from services.lucien_notification_service import LucienNotificationService
+    from utils.user_roles import get_user_role
 
     points_dict = await channel_service.get_reaction_points(channel_id)
     points = float(points_dict.get(reaction_type, 0.0))
@@ -100,7 +103,10 @@ async def handle_reaction_callback(
         callback.from_user.id,
         BOT_MESSAGES["reaction_registered_points"].format(points=points),
     )
-    await bot.send_message(
-        callback.from_user.id,
-        random.choice(LUCIEN_MESSAGES),
+    # Send Lucien's gamified notification
+    lucien_service = LucienNotificationService(session)
+    await lucien_service.send_reaction_notification(
+        bot, 
+        callback.from_user.id, 
+        points_earned=int(points)
     )

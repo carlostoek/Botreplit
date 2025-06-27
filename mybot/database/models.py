@@ -123,7 +123,8 @@ class UserMissionEntry(AsyncAttrs, Base):
     __tablename__ = "user_mission_entries"
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(BigInteger, ForeignKey("users.id"))
-    mission_id = Column(String, ForeignKey("missions.id"))
+    # Use Integer to match the primary key type of the missions table
+    mission_id = Column(Integer, ForeignKey("missions.id"))
     progress_value = Column(Integer, default=0, nullable=False)
     completed = Column(Boolean, default=False)
     completed_at = Column(DateTime, nullable=True)
@@ -347,9 +348,9 @@ class ButtonReaction(AsyncAttrs, Base):
 # NEW AUCTION SYSTEM MODELS
 class Auction(AsyncAttrs, Base):
     """Real-time auction system."""
-    
+
     __tablename__ = "auctions"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String, nullable=False)
     description = Column(Text, nullable=True)
@@ -364,7 +365,7 @@ class Auction(AsyncAttrs, Base):
     created_by = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime, default=func.now())
     ended_at = Column(DateTime, nullable=True)
-    
+
     # Auction settings
     min_bid_increment = Column(Integer, default=10)  # Minimum increment for new bids
     max_participants = Column(Integer, nullable=True)  # Optional participant limit
@@ -373,16 +374,16 @@ class Auction(AsyncAttrs, Base):
 
 class Bid(AsyncAttrs, Base):
     """Individual bids in auctions."""
-    
+
     __tablename__ = "bids"
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     auction_id = Column(Integer, ForeignKey("auctions.id"), nullable=False)
     user_id = Column(BigInteger, ForeignKey("users.id"), nullable=False)
     amount = Column(Integer, nullable=False)
     timestamp = Column(DateTime, default=func.now())
     is_winning = Column(Boolean, default=False)  # Track if this is currently the winning bid
-    
+
     __table_args__ = (
         UniqueConstraint("auction_id", "user_id", "amount", name="uix_auction_user_bid"),
     )
@@ -390,9 +391,9 @@ class Bid(AsyncAttrs, Base):
 
 class AuctionParticipant(AsyncAttrs, Base):
     """Track users participating in auctions for notifications."""
-    
+
     __tablename__ = "auction_participants"
-    
+
     auction_id = Column(Integer, ForeignKey("auctions.id"), primary_key=True)
     user_id = Column(BigInteger, ForeignKey("users.id"), primary_key=True)
     joined_at = Column(DateTime, default=func.now())
