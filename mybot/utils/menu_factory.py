@@ -189,3 +189,5 @@ class MenuFactory:
                 "El estado de configuración solicitado no es válido.",
                 get_setup_confirmation_kb("cancel_setup")
             )
+# Global factory instance
+menu_factory = MenuFactory()
